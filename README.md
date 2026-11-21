@@ -4,23 +4,30 @@ Doble clic en un `.exe` o `.msi` desde el gestor de archivos y se ejecuta o se
 instala, como en Windows. Por debajo: **umu-launcher + GE-Proton**, un prefijo
 por app y accesos en el menú de aplicaciones con su icono.
 
-Versión **0.1** (primera para probar).
+Versión **0.1.1** (primera para probar).
 
 ## Instalación
 
 ```fish
-sudo pacman -S --needed umu-launcher icoutils msitools libnotify zenity   # en KDE: kdialog en vez de zenity
-./install.sh
+unzip malive-0.1.1.zip; cd malive; ./install.sh
 ```
 
-`install.sh` instala sin root en `~/.local` (comandos `malive` y `malive-run`),
-asocia `.exe`, `.msi` y `.lnk` a MaLiVe (en `~/.config/mimeapps.list`; guarda
-la asociación anterior para restaurarla) y activa un temporizador semanal de
-systemd `--user` que descarga el último GE-Proton.
+El instalador te dice qué le falta, para qué sirve cada cosa y te pide
+permiso **una sola vez**. Si dices que sí, instala los paquetes con pacman
+(te pedirá tu contraseña), descarga GE-Proton y el runtime de Steam (~1 GB),
+comprueba que Proton arranca y asocia `.exe`, `.msi` y `.lnk` a MaLiVe. Si
+dices que no, sale sin tocar nada.
 
-Si `~/.local/bin` no está en tu PATH: `fish_add_path ~/.local/bin`.
+- Ejecútalo con tu usuario, no con `sudo`.
+- `./install.sh --yes` lo autoriza sin preguntar.
+- Necesita una distro basada en Arch (CachyOS, Arch, EndeavourOS, Manjaro) con
+  el repositorio `[multilib]` activo, que es donde está `umu-launcher`. Si no
+  lo está, el instalador te explica cómo activarlo.
+- Para volver a instalar o actualizar MaLiVe, lanza otra vez `./install.sh`.
 
-Desinstalar: `./uninstall.sh` (conserva tus apps) o `./uninstall.sh --purge` (lo borra todo).
+Desinstalar: `./uninstall.sh` (conserva tus apps) o `./uninstall.sh --purge`
+(lo borra todo). Los paquetes del sistema no se desinstalan, porque otros
+programas pueden usarlos.
 
 ## Qué hace al hacer doble clic
 
@@ -33,8 +40,8 @@ Desinstalar: `./uninstall.sh` (conserva tus apps) o `./uninstall.sh --purge` (lo
 | Programa de consola | Lo abre con `start /wait /unix …` para que tenga ventana de consola |
 | Programa de MS-DOS / 16 bits, `.dll` | Aviso explicando que no se puede |
 
-La primera vez descarga GE-Proton (~500 MB) y umu descarga su runtime;
-mientras tanto se ve un diálogo "Preparando…".
+GE-Proton y el runtime ya se descargan durante la instalación. Al crear el
+primer entorno de cada app se ve un diálogo "Preparando…".
 
 Si el instalador no crea accesos directos, MaLiVe busca los `.exe` nuevos y,
 si hay varios, pregunta cuáles poner en el menú. Si no se instaló nada
@@ -69,6 +76,7 @@ malive winetricks APP dotnet48  componentes extra
 malive proton list|update|use
 malive set isolate on|off [--app APP]
 malive doctor                   comprobar dependencias e integración
+malive setup                    descargar GE-Proton y runtime y probar que Proton arranca
 malive integrate | unintegrate
 ```
 

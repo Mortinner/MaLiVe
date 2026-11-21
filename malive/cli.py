@@ -172,6 +172,47 @@ def cmd_winetricks(a) -> int:
     return rc
 
 
+def cmd_setup(a) -> int:
+    """Descarga GE-Proton y el runtime de umu y comprueba que Proton arranca,
+    creando un prefijo de prueba que luego se borra. Lo usa install.sh para
+    que el primer doble clic no tenga que descargar nada."""
+    import shutil as _sh
+
+    def progress(done, total):
+        if total:
+            print(f"\r  {done * 100 // total:3d}%  {_human(done)} / {_human(total)}", end="", flush=True)
+
+    name = proton.newest_installed()
+    if name:
+        print(f"  GE-Proton ya descargado: {name}")
+    else:
+        print("  Descargando GE-Proton (~500 MB)…")
+        try:
+            name, _ = proton.update(progress)
+        except proton.ProtonError as e:
+            print(f"\n  Error: {e}", file=sys.stderr)
+            return 1
+        print(f"\n  {name} listo.")
+
+    print("  Preparando el runtime de Steam y comprobando que Proton funciona (unos minutos la primera vez)…")
+    test = config.App(id="_setup", name="prueba", kind="portable",
+                      prefix=str(paths.data_dir() / ".setup-test"), proton=name)
+    _sh.rmtree(test.prefix_path, ignore_errors=True)
+    test.prefix_path.mkdir(parents=True)
+    try:
+        rc, secs = pfx.run_umu(test, config.load_global(), [""], cwd=test.prefix_path,
+                               verb="waitforexitandrun", log_mode="w")
+        ok = pfx.is_created(test.prefix_path)
+    finally:
+        _sh.rmtree(test.prefix_path, ignore_errors=True)
+    if not ok:
+        print(f"  Proton no ha podido crear un entorno (código {rc}). Registro: {pfx.log_path(test)}",
+              file=sys.stderr)
+        return 1
+    print(f"  Todo correcto ({secs:.0f} s).")
+    return 0
+
+
 def cmd_doctor(a) -> int:
     ok = True
 
@@ -259,6 +300,8 @@ def build_parser() -> argparse.ArgumentParser:
     s.set_defaults(func=cmd_winetricks)
 
     sub.add_parser("doctor", help="comprobar dependencias e integración").set_defaults(func=cmd_doctor)
+    sub.add_parser("setup", help="descargar GE-Proton y el runtime y probar que Proton arranca"
+                   ).set_defaults(func=cmd_setup)
     return p
 
 
