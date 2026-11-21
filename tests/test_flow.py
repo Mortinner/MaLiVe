@@ -286,13 +286,15 @@ def test_refresh_menus_waits_for_kbuildsycoca(env, monkeypatch):
         stderr = ""
 
     def fake_run(cmd, **kw):
-        calls.append(cmd[0].rsplit("/", 1)[-1])
+        calls.append(" ".join([cmd[0].rsplit("/", 1)[-1], *cmd[1:2]]))
         assert "timeout" in kw  # síncrono, no Popen en segundo plano
         return R()
 
     monkeypatch.setattr(shortcuts.subprocess, "run", fake_run)
     shortcuts.refresh_menus()
-    assert calls == ["update-desktop-database", "kbuildsycoca6"]
+    apps = str(paths.applications_dir())
+    # Reconstrucción completa: la incremental no redibuja el menú de Plasma
+    assert calls == [f"update-desktop-database {apps}", "kbuildsycoca6 --noincremental"]
 
 
 def test_shortcut_appears_while_launched_app_is_still_open(env, monkeypatch):

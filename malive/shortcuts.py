@@ -320,11 +320,16 @@ def refresh_menus() -> None:
 
     Se espera a que termine: lanzado en segundo plano, Plasma puede matar el
     proceso al cerrarse malive-run (cada lanzamiento va en su propia unidad
-    de systemd) y el menú se queda con entradas borradas.
+    de systemd).
     """
     apps_dir = paths.applications_dir()
     done = []
-    for cmd in (["update-desktop-database", str(apps_dir)], ["kbuildsycoca6"], ["kbuildsycoca5"]):
+    # --noincremental: con la reconstrucción incremental, Plasma actualiza su
+    # base de datos (el buscador encuentra el programa) pero la lista de
+    # «Todas las aplicaciones» del menú no se redibuja. Comprobado en
+    # CachyOS + Plasma 6. La reconstrucción completa tarda uno o dos segundos.
+    for cmd in (["update-desktop-database", str(apps_dir)],
+                ["kbuildsycoca6", "--noincremental"], ["kbuildsycoca5", "--noincremental"]):
         exe = shutil.which(cmd[0])
         if not exe:
             done.append(f"{cmd[0]}: no está")

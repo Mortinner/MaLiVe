@@ -1,5 +1,12 @@
 # Cambios
 
+## 0.1.7
+- Arreglado: en Plasma, los programas recién instalados no aparecían en
+  «Todas las aplicaciones» (sí en el buscador) y los desinstalados seguían
+  en la lista. MaLiVe ahora reconstruye por completo la base de datos de
+  programas del escritorio (`kbuildsycoca6 --noincremental`), que es lo que
+  hace que el menú se redibuje.
+
 ## 0.1.6
 - Los programas que se abren solos al terminar la instalación («Ejecutar
   Notepad++») ya no retrasan su acceso: MaLiVe vigila el menú Inicio de
