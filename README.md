@@ -8,22 +8,25 @@ Versión **0.1.1** (primera para probar).
 
 ## Instalación
 
-```fish
-unzip malive-0.1.1.zip; cd malive; ./install.sh
-```
+1. Descomprime `malive-0.1.1.zip` (clic derecho → Extraer aquí).
+2. Entra en la carpeta `malive` y haz doble clic en `install.sh` → **Ejecutar**
+   (o en una terminal: `./install.sh`).
 
-El instalador te dice qué le falta, para qué sirve cada cosa y te pide
-permiso **una sola vez**. Si dices que sí, instala los paquetes con pacman
-(te pedirá tu contraseña), descarga GE-Proton y el runtime de Steam (~1 GB),
-comprueba que Proton arranca y asocia `.exe`, `.msi` y `.lnk` a MaLiVe. Si
-dices que no, sale sin tocar nada.
+Se abre un asistente con ventanas en la terminal (estilo instalador clásico
+de Linux; se maneja con ←/→, Intro y Esc): bienvenida, software necesario
+("¿Deseas continuar con la instalación?"), contraseña si hace falta instalar
+paquetes, progreso y final. Si se cancela, no se toca nada.
 
-- Ejecútalo con tu usuario, no con `sudo`.
-- `./install.sh --yes` lo autoriza sin preguntar.
+- Si se lanza sin terminal (doble clic → Ejecutar), se vuelve a abrir solo en
+  la terminal del escritorio (Konsole, Ptyxis/GNOME Console, GNOME Terminal…).
+- La contraseña se pide en su propia ventana y se pasa a `sudo`; nunca se
+  guarda. Si no hay `sudo`, se usa `pkexec` (ventana del sistema).
+- Registro de la instalación: `~/.local/state/malive/install.log`.
+- `./install.sh --yes`: sin ventanas ni preguntas (instalación desatendida).
 - Necesita una distro basada en Arch (CachyOS, Arch, EndeavourOS, Manjaro) con
-  el repositorio `[multilib]` activo, que es donde está `umu-launcher`. Si no
-  lo está, el instalador te explica cómo activarlo.
-- Para volver a instalar o actualizar MaLiVe, lanza otra vez `./install.sh`.
+  el repositorio `[multilib]` activo (ahí está `umu-launcher`); si no lo está,
+  el asistente explica cómo activarlo.
+- Para actualizar MaLiVe, vuelve a ejecutar el instalador.
 
 Desinstalar: `./uninstall.sh` (conserva tus apps) o `./uninstall.sh --purge`
 (lo borra todo). Los paquetes del sistema no se desinstalan, porque otros
