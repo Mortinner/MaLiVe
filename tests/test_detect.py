@@ -60,3 +60,21 @@ def test_generic_setup_uses_folder_name(tmp_path):
     f = d / "setup.exe"
     f.write_bytes(b"MZ" + b"\0" * 200)  # sin cabecera PE: el nombre no depende de ella
     assert detect.name_from_path(f) == "Office"
+
+
+@pytest.mark.parametrize(
+    "raw, expected",
+    [
+        ("PuTTY release 0.85 (64-bit)", "PuTTY"),
+        ("7-Zip 24.08 (x64 edition)", "7-Zip"),
+        ("Notepad++ (64-bit x64)", "Notepad++"),
+        ("VLC media player", "VLC media player"),
+        ("Microsoft Office 2010", "Microsoft Office 2010"),
+        ("KeePass Password Safe 2.57.1", "KeePass Password Safe"),
+        ("Audacity 3.7.1 Setup", "Audacity"),
+        ("Format Factory", "Format Factory"),
+        ("FormatFactory v5.18.0", "FormatFactory"),
+    ],
+)
+def test_clean_product_name(raw, expected):
+    assert detect.clean_product_name(raw) == expected

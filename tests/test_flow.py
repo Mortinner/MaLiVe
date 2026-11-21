@@ -263,3 +263,33 @@ def test_refresh_rewrites_old_desktop_files(env):
     desktop.write_text("[Desktop Entry]\nName=viejo\n")  # como los de la 0.1.2
     assert cli.main(["refresh"]) == 0
     assert "Actions=malive-uninstall;" in desktop.read_text()
+
+
+def test_new_version_reuses_prefix_of_old_name(env):
+    # app instalada con una versión anterior que guardó el nombre con versión
+    old = config.App(id="putty-release-0-85-64-bit", name="PuTTY release 0.85 (64-bit)",
+                     kind="installed", prefix="/x", proton="GE-Proton10-1")
+    old.save()
+    assert config.find_installed_by_name("PuTTY") is not None
+    assert config.find_installed_by_name("PuTTY release 0.86 (64-bit)").id == old.id
+    assert config.find_installed_by_name("PuTTYgen") is None
+
+
+def test_refresh_menus_waits_for_kbuildsycoca(env, monkeypatch):
+    from malive import shortcuts
+
+    calls = []
+    monkeypatch.setattr(shortcuts.shutil, "which", lambda c: f"/usr/bin/{c}")
+
+    class R:
+        returncode = 0
+        stderr = ""
+
+    def fake_run(cmd, **kw):
+        calls.append(cmd[0])
+        assert "timeout" in kw  # síncrono, no Popen en segundo plano
+        return R()
+
+    monkeypatch.setattr(shortcuts.subprocess, "run", fake_run)
+    shortcuts.refresh_menus()
+    assert calls == ["update-desktop-database", "kbuildsycoca6"]

@@ -98,11 +98,27 @@ def name_from_path(path: Path) -> str:
     return name
 
 
+_PAREN_NOISE = re.compile(r"\s*[(\[][^)\]]*(bit|x64|x86|amd64|arm64|edition|version|versi[oó]n|build)[^)\]]*[)\]]", re.I)
+_VERSION_TOKEN = re.compile(r"^(v?\d+(\.\d+)+[a-z]?|release|version|versi[oó]n|build|x64|x86|amd64|arm64|"
+                            r"(32|64)-?bits?|win(32|64)|setup|installer|instalador)$", re.I)
+
+
+def clean_product_name(value: str) -> str:
+    """'PuTTY release 0.85 (64-bit)' -> 'PuTTY'; '7-Zip 24.08 (x64 edition)' -> '7-Zip';
+    'Office 2010' se queda igual (un número sin puntos no es una versión)."""
+    value = _PAREN_NOISE.sub("", value).strip()
+    tokens = value.split()
+    while len(tokens) > 1 and _VERSION_TOKEN.match(tokens[-1].strip(",;-")):
+        tokens.pop()
+    kept = [t for i, t in enumerate(tokens) if i == 0 or not _VERSION_TOKEN.match(t.strip(",;-"))]
+    return " ".join(kept).strip(" -,") or value
+
+
 def _product_name(version: dict[str, str], path: Path) -> str:
     for key in ("ProductName", "FileDescription"):
         value = version.get(key, "").strip()
         if value and value.lower() not in GENERIC_PRODUCT_NAMES:
-            cleaned = re.sub(r"\s+(setup|installer|instalador)$", "", value, flags=re.I).strip()
+            cleaned = clean_product_name(value)
             if cleaned and cleaned.lower() not in GENERIC_PRODUCT_NAMES:
                 return cleaned[:80]
     return name_from_path(path)
@@ -140,7 +156,8 @@ def detect(path: str | Path) -> Detection:
     if head[:8] == OLE_MAGIC:
         msi_clsid = bytes.fromhex("84100c0000000000c000000000000046")
         if path.suffix.lower() == ".msi" or msi_clsid in head:
-            name = msi_product_name(path) or name_from_path(path)
+            raw = msi_product_name(path)
+            name = clean_product_name(raw) if raw else name_from_path(path)
             return Detection("msi", path, subtype="msi", name=name)
         return Detection("unsupported", path, reason="documento OLE que no es un MSI")
 

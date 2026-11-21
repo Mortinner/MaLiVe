@@ -408,28 +408,48 @@ fi
 # 3. Asistente
 # ==========================================================================
 
+INSTALLED="$(sed -n 's/^__version__ = "\(.*\)"/\1/p' "$LIB/malive/__init__.py" 2>/dev/null)"
+log "versión instalada: ${INSTALLED:-ninguna}"
+
 if [ "$ASSUME_YES" = 0 ]; then
+  if [ -n "$INSTALLED" ]; then
+    if [ "$INSTALLED" = "$VERSION" ]; then
+      what="MaLiVe ${VERSION} ya está instalado. Este asistente lo reinstalará."
+    else
+      what="Este asistente actualizará MaLiVe de la versión ${INSTALLED} a la ${VERSION}."
+    fi
+    dialog "Bienvenido" "${what}
+
+Tus programas instalados, sus datos y GE-Proton se conservan." "Siguiente" "Cancelar"
+  else
   dialog "Bienvenido" "Este asistente instalará MaLiVe ${VERSION} en tu equipo.
 
 Con MaLiVe podrás abrir programas de Windows (.exe y .msi) con un doble clic, igual que en Windows: se instalan, aparecen en el menú de aplicaciones con su icono y se abren desde ahí." \
     "Siguiente" "Cancelar"
+  fi
   [ "$CHOICE" -eq 0 ] || cancelled
 
+  if compgen -G "$DATA/proton/GE-Proton*/proton" >/dev/null; then
+    dl="GE-Proton ya está descargado: no hace falta descargar nada grande."
+  else
+    dl="También se descargarán GE-Proton y el entorno de Steam (alrededor de 1 GB)."
+  fi
+  if [ -n "$INSTALLED" ]; then action="actualización"; else action="instalación"; fi
   if [ "${#PKGS[@]}" -gt 0 ]; then
     list=""
     for i in "${!PKGS[@]}"; do list+="  • ${PKGS[$i]}: ${WHY[$i]}"$'\n'; done
     body="Para funcionar, MaLiVe necesita el siguiente software de los repositorios oficiales de tu sistema:
 
 ${list}
-También descargará GE-Proton y el entorno de Steam (alrededor de 1 GB).
+${dl}
 
-¿Deseas continuar con la instalación?"
+¿Deseas continuar con la ${action}?"
   else
     body="Todo el software que necesita MaLiVe ya está instalado.
 
-Se descargarán GE-Proton y el entorno de Steam (alrededor de 1 GB).
+${dl}
 
-¿Deseas continuar con la instalación?"
+¿Deseas continuar con la ${action}?"
   fi
   dialog "Software necesario" "$body" "Continuar" "Cancelar"
   [ "$CHOICE" -eq 0 ] || cancelled
@@ -544,6 +564,10 @@ if [ "$SETUP_FAILED" = 1 ]; then
 No pasa nada: se preparará automáticamente la primera vez que abras un programa de Windows.
 
 Registro: $LOG" "Finalizar"
+elif [ -n "$INSTALLED" ] && [ "$INSTALLED" != "$VERSION" ]; then
+  dialog "Actualización terminada" "MaLiVe se ha actualizado a la versión ${VERSION}.
+
+Tus programas siguen en el menú de aplicaciones. Ya puedes borrar la carpeta del instalador." "Finalizar"
 else
   dialog "Instalación terminada" "MaLiVe se ha instalado correctamente.
 

@@ -7,6 +7,7 @@ una instantánea del prefijo antes y después de instalar.
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 import shutil
@@ -22,6 +23,8 @@ from .config import App, Entry
 SKIP_DIRS = {"temp", "tmp", "cache", "inetcache", "crashdumps"}
 SKIP_TOP = {"windows"}  # solo drive_c/windows (no ...\Microsoft\Windows\Start Menu)
 # Accesos/ejecutables que no son "el programa"
+log = logging.getLogger("malive")
+
 JUNK = re.compile(
     r"(unins\d*|uninst|uninstall|desinstal|remove|readme|l[eé]ame|help|ayuda|manual|"
     r"license|licencia|eula|website|web site|homepage|changelog|release notes|"
@@ -285,14 +288,24 @@ def rewrite_all() -> int:
 
 
 def refresh_menus() -> None:
+    """Avisa al escritorio de que han cambiado los accesos.
+
+    Se espera a que termine: lanzado en segundo plano, Plasma puede matar el
+    proceso al cerrarse malive-run (cada lanzamiento va en su propia unidad
+    de systemd) y el menú se queda con entradas borradas.
+    """
     apps_dir = paths.applications_dir()
     for cmd in (["update-desktop-database", str(apps_dir)], ["kbuildsycoca6"], ["kbuildsycoca5"]):
         if shutil.which(cmd[0]):
             try:
-                subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                                 start_new_session=True)
-            except OSError:
-                pass
+                r = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                                   text=True, timeout=60)
+                if r.returncode != 0:
+                    log.warning("%s terminó con código %s: %s", cmd[0], r.returncode, r.stderr.strip()[-300:])
+            except (OSError, subprocess.TimeoutExpired) as e:
+                log.warning("no se pudo ejecutar %s: %s", cmd[0], e)
+            if cmd[0] == "kbuildsycoca6":
+                break  # con la de Plasma 6 no hace falta la de Plasma 5
 
 
 def register(app: App, candidates: list[Candidate]) -> list[Entry]:

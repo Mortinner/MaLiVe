@@ -165,9 +165,13 @@ def find_by_prefix(prefix: Path) -> App | None:
 
 
 def find_installed_by_name(name: str) -> App | None:
-    key = name.casefold()
+    """Busca la app ignorando versión y arquitectura, para que instalar la
+    versión nueva de un programa reutilice su entorno."""
+    from .detect import clean_product_name
+
+    key = clean_product_name(name).casefold()
     for app in all_apps():
-        if app.kind == "installed" and app.name.casefold() == key:
+        if app.kind == "installed" and clean_product_name(app.name).casefold() == key:
             return app
     return None
 

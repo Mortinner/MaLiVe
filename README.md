@@ -4,12 +4,12 @@ Doble clic en un `.exe` o `.msi` desde el gestor de archivos y se ejecuta o se
 instala, como en Windows. Por debajo: **umu-launcher + GE-Proton**, un prefijo
 por app y accesos en el menú de aplicaciones con su icono.
 
-Versión **0.1.3** (primera para probar).
+Versión **0.1.4** (primera para probar).
 
 ## Instalación
 
-1. Descomprime `malive-0.1.3.zip` (clic derecho → Extraer aquí).
-2. Entra en la carpeta `malive` y haz doble clic en `install.sh` → **Ejecutar**
+1. Descomprime `malive-0.1.4.zip` (clic derecho → Extraer aquí).
+2. Entra en la carpeta `malive-0.1.4` y haz doble clic en `install.sh` → **Ejecutar**
    (o en una terminal: `./install.sh`).
 
 Se abre un asistente con ventanas en la terminal (estilo instalador clásico
@@ -26,7 +26,8 @@ paquetes, progreso y final. Si se cancela, no se toca nada.
 - Necesita una distro basada en Arch (CachyOS, Arch, EndeavourOS, Manjaro) con
   el repositorio `[multilib]` activo (ahí está `umu-launcher`); si no lo está,
   el asistente explica cómo activarlo.
-- Para actualizar MaLiVe, vuelve a ejecutar el instalador.
+- Para actualizar MaLiVe, ejecuta el `install.sh` de la versión nueva (sin desinstalar):
+  conserva tus programas, sus datos y GE-Proton, y actualiza los accesos del menú.
 
 Desinstalar: `./uninstall.sh` (conserva tus apps) o `./uninstall.sh --purge`
 (lo borra todo). Los paquetes del sistema no se desinstalan, porque otros
