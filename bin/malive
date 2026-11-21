@@ -1,0 +1,6 @@
+#!/usr/bin/env python3
+# Envoltorio de desarrollo: ejecuta MaLiVe desde el árbol del repositorio.
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+from malive.cli import main
+sys.exit(main())
