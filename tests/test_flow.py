@@ -286,7 +286,7 @@ def test_refresh_menus_waits_for_kbuildsycoca(env, monkeypatch):
         stderr = ""
 
     def fake_run(cmd, **kw):
-        calls.append(cmd[0])
+        calls.append(cmd[0].rsplit("/", 1)[-1])
         assert "timeout" in kw  # síncrono, no Popen en segundo plano
         return R()
 
