@@ -1,0 +1,49 @@
+name: Publicar versión
+
+# Para publicar: subir la versión en malive/__init__.py, release.json y
+# CHANGELOG.md, hacer commit y empujar una etiqueta vX.Y.Z.
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Comprobar que la etiqueta coincide con la versión
+        run: |
+          V="${GITHUB_REF_NAME#v}"
+          grep -q "__version__ = \"$V\"" malive/__init__.py || { echo "malive/__init__.py no es $V"; exit 1; }
+          python -c "import json,sys; sys.exit(json.load(open('release.json'))['version'] != '$V')" || { echo "release.json no es $V"; exit 1; }
+          grep -q "^## $V\$" CHANGELOG.md || { echo "CHANGELOG.md no tiene la sección $V"; exit 1; }
+          echo "V=$V" >> "$GITHUB_ENV"
+
+      - name: Tests
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq icoutils msitools shellcheck desktop-file-utils
+          pip install pytest pylnk3
+          python -m pytest -q
+          shellcheck -S warning install.sh uninstall.sh
+
+      - name: Empaquetar
+        run: |
+          git archive --format=zip --prefix="malive-$V/" -o "malive-$V.zip" HEAD
+          sha256sum "malive-$V.zip" | cut -d' ' -f1 > "malive-$V.zip.sha256"
+          awk -v v="## $V" '$0==v{f=1;next} /^## /{f=0} f' CHANGELOG.md > notes.md
+          cat notes.md
+
+      - name: Publicar
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "malive-$V.zip" "malive-$V.zip.sha256" \
+            --title "MaLiVe $V" --notes-file notes.md

@@ -23,6 +23,8 @@ DEFAULTS = {
     "shared_folders": ["DOCUMENTS", "DOWNLOAD"],
     # Comprobar semanalmente si hay un GE-Proton nuevo (solo para apps nuevas).
     "proton_auto_update": True,
+    # Instalar solas las versiones nuevas de MaLiVe (y avisar después).
+    "auto_update": True,
     # GE-Proton descargados que se conservan aunque ninguna app los use.
     "proton_keep_unused": 1,
     "gameid": "umu-default",

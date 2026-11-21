@@ -5,9 +5,10 @@ from __future__ import annotations
 import argparse
 import shutil
 import sys
+import time
 from pathlib import Path
 
-from . import __version__, config, integrate, paths, prefix as pfx, proton, runner, shortcuts
+from . import __version__, config, integrate, paths, prefix as pfx, proton, runner, shortcuts, updater
 
 
 def _human(n: int) -> str:
@@ -29,9 +30,11 @@ def cmd_integrate(a) -> int:
     path = integrate.install_handler()
     print(f"Asociación creada: {path}")
     print("Los .exe, .msi y .lnk se abrirán con MaLiVe al hacer doble clic.")
-    if not a.no_timer and config.load_global().get("proton_auto_update", True):
+    cfg = config.load_global()
+    if not a.no_timer and (cfg.get("auto_update", True) or cfg.get("proton_auto_update", True)):
         ok = integrate.install_timer()
-        print("Comprobación semanal de GE-Proton: " + ("activada" if ok else "no se pudo activar (systemctl --user)"))
+        print("Actualizaciones automáticas (MaLiVe y GE-Proton): "
+              + ("activadas" if ok else "no se pudieron activar (systemctl --user)"))
     return 0
 
 
@@ -133,8 +136,12 @@ def cmd_proton(a) -> int:
 
 def cmd_set(a) -> int:
     value = {"on": True, "off": False}[a.value]
-    if a.key != "isolate":
-        sys.exit("Solo se admite «isolate» por ahora.")
+    if a.key == "auto-update":
+        cfg = config.load_global()
+        cfg["auto_update"] = value
+        config.save_global(cfg)
+        print(f"Actualizaciones automáticas de MaLiVe: {a.value}")
+        return 0
     if a.app:
         app = _get_app(a.app)
         app.isolate = value
@@ -210,6 +217,49 @@ def cmd_setup(a) -> int:
               file=sys.stderr)
         return 1
     print(f"  Todo correcto ({secs:.0f} s).")
+    return 0
+
+
+def cmd_update(a) -> int:
+    current = updater.installed_version() or __version__
+    try:
+        if a.check:
+            rel = updater.latest_release()
+            if updater.parse_version(rel.version) > updater.parse_version(current):
+                print(f"Hay una versión nueva: {rel.version} (tienes la {current}).\n{rel.url}")
+            else:
+                print(f"MaLiVe está al día ({current}).")
+            return 0
+        res = updater.check_and_update(force=True)
+    except updater.UpdateError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+    if res.status == "up-to-date":
+        print(f"MaLiVe está al día ({current}).")
+    elif res.status == "updated":
+        print(f"MaLiVe actualizado de la {current} a la {res.version}.")
+    elif res.status == "needs-packages":
+        print(f"La versión {res.version} necesita instalar: {', '.join(res.missing)}.\n"
+              f"Abriendo el asistente de instalación…")
+        updater.launch_installer(res.staged)
+    return 0
+
+
+def cmd_auto(a) -> int:
+    """Lo que ejecuta el temporizador diario."""
+    updater.auto()
+    cfg = config.load_global()
+    stamp = paths.data_dir() / ".proton-last-check"
+    try:
+        old = time.time() - float(stamp.read_text()) > 7 * 86400
+    except (OSError, ValueError):
+        old = True
+    if cfg.get("proton_auto_update", True) and old:
+        try:
+            proton.update()
+            proton.cleanup(cfg.get("proton_keep_unused", 1))
+        except proton.ProtonError as e:
+            runner.log.warning("actualización de GE-Proton: %s", e)
     return 0
 
 
@@ -289,7 +339,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.set_defaults(func=cmd_proton)
 
     s = sub.add_parser("set", help="cambiar opciones (global o de una app)")
-    s.add_argument("key", choices=["isolate"])
+    s.add_argument("key", choices=["isolate", "auto-update"])
     s.add_argument("value", choices=["on", "off"])
     s.add_argument("--app")
     s.set_defaults(func=cmd_set)
@@ -306,6 +356,11 @@ def build_parser() -> argparse.ArgumentParser:
     s.set_defaults(func=cmd_winetricks)
 
     sub.add_parser("doctor", help="comprobar dependencias e integración").set_defaults(func=cmd_doctor)
+    s = sub.add_parser("update", help="actualizar MaLiVe ahora (--check: solo comprobar)")
+    s.add_argument("--check", action="store_true")
+    s.set_defaults(func=cmd_update)
+    sub.add_parser("auto", help="(lo usa el temporizador) actualizar MaLiVe y GE-Proton"
+                   ).set_defaults(func=cmd_auto)
     sub.add_parser("refresh", help="regenerar los accesos del menú de todas las apps"
                    ).set_defaults(func=cmd_refresh)
     sub.add_parser("setup", help="descargar GE-Proton y el runtime y probar que Proton arranca"

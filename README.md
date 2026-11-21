@@ -4,12 +4,13 @@ Doble clic en un `.exe` o `.msi` desde el gestor de archivos y se ejecuta o se
 instala, como en Windows. Por debajo: **umu-launcher + GE-Proton**, un prefijo
 por app y accesos en el menú de aplicaciones con su icono.
 
-Versión **0.1.4** (primera para probar).
+Versión **0.1.5**. Licencia GPL-3.0.
 
 ## Instalación
 
-1. Descomprime `malive-0.1.4.zip` (clic derecho → Extraer aquí).
-2. Entra en la carpeta `malive-0.1.4` y haz doble clic en `install.sh` → **Ejecutar**
+1. Descarga `malive-X.Y.Z.zip` de la [última versión](https://github.com/Mortinner/MaLiVe/releases/latest)
+   y descomprímelo (clic derecho → Extraer aquí).
+2. Entra en la carpeta `malive-X.Y.Z` y haz doble clic en `install.sh` → **Ejecutar**
    (o en una terminal: `./install.sh`).
 
 Se abre un asistente con ventanas en la terminal (estilo instalador clásico
@@ -26,8 +27,9 @@ paquetes, progreso y final. Si se cancela, no se toca nada.
 - Necesita una distro basada en Arch (CachyOS, Arch, EndeavourOS, Manjaro) con
   el repositorio `[multilib]` activo (ahí está `umu-launcher`); si no lo está,
   el asistente explica cómo activarlo.
-- Para actualizar MaLiVe, ejecuta el `install.sh` de la versión nueva (sin desinstalar):
-  conserva tus programas, sus datos y GE-Proton, y actualiza los accesos del menú.
+- Después, MaLiVe **se actualiza solo** (ver más abajo). También puedes
+  actualizar a mano ejecutando el `install.sh` de la versión nueva, sin
+  desinstalar: conserva tus programas, sus datos y GE-Proton.
 
 Desinstalar: `./uninstall.sh` (conserva tus apps) o `./uninstall.sh --purge`
 (lo borra todo). Los paquetes del sistema no se desinstalan, porque otros
@@ -50,6 +52,27 @@ primer entorno de cada app se ve un diálogo "Preparando…".
 Si el instalador no crea accesos directos, MaLiVe busca los `.exe` nuevos y,
 si hay varios, pregunta cuáles poner en el menú. Si no se instaló nada
 (instalador cancelado) y el prefijo era nuevo, lo borra.
+
+## Actualizaciones automáticas
+
+Un temporizador de systemd de usuario (`malive-auto.timer`) busca cada día
+una versión nueva en las [releases de GitHub](https://github.com/Mortinner/MaLiVe/releases):
+
+1. Descarga el zip y comprueba su SHA-256.
+2. Si la versión nueva necesita software del sistema que no tienes, avisa con
+   una notificación y ofrece abrir el asistente (hace falta tu contraseña).
+3. Si no, la instala en segundo plano, comprueba que arranca y, si algo
+   falla, vuelve a la versión anterior. Al terminar avisa: «MaLiVe se ha
+   actualizado a la versión X».
+
+Una vez por semana descarga también el último GE-Proton, que solo se usa
+para los programas nuevos.
+
+```
+malive update            actualizar ahora
+malive update --check    solo comprobar
+malive set auto-update off|on
+```
 
 ## Decisiones de diseño implementadas
 
@@ -78,6 +101,7 @@ malive shortcuts APP [--all]    volver a buscar accesos (--all: elegir entre tod
 malive exec APP winecfg         winecfg, regedit, cmd, un .exe… dentro del prefijo
 malive winetricks APP dotnet48  componentes extra
 malive proton list|update|use
+malive update [--check]         actualizar MaLiVe
 malive set isolate on|off [--app APP]
 malive doctor                   comprobar dependencias e integración
 malive setup                    descargar GE-Proton y runtime y probar que Proton arranca
@@ -106,6 +130,18 @@ malive integrate | unintegrate
   instalador) se trata como instalador; si no instala nada, su prefijo se borra.
 - La categoría del menú es siempre "Utilidades".
 - Fuera de alcance: antitrampas de kernel, drivers, DRM agresivo.
+
+## Publicar una versión
+
+1. Sube la versión en `malive/__init__.py` y `release.json`, y añade su
+   sección en `CHANGELOG.md` (`## X.Y.Z`).
+2. Si la versión necesita paquetes nuevos del sistema, añádelos a
+   `release.json` **y** a `install.sh` (un test comprueba que coinciden).
+3. `git commit`, `git tag vX.Y.Z`, `git push --tags`.
+
+GitHub Actions pasa los tests, crea `malive-X.Y.Z.zip` con su `.sha256` y
+publica la release con las notas del CHANGELOG. Los equipos con MaLiVe se
+actualizan solos en menos de un día.
 
 ## Desarrollo
 

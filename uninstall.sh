@@ -20,7 +20,7 @@ if ((PURGE)); then
   read -r -p "Se borrarán TODAS las apps instaladas con MaLiVe y sus datos. ¿Seguro? [s/N] " ans
   case "$ans" in s|S|si|sí|y|Y) ;; *) echo "Cancelado."; exit 1 ;; esac
   rm -f "$DATA"/applications/malive-*.desktop
-  rm -rf "$DATA/malive" "$CONF/malive" "$STATE/malive"
+  rm -rf "$DATA/malive" "$CONF/malive" "$STATE/malive" "${XDG_CACHE_HOME:-$HOME/.cache}/malive"
   command -v update-desktop-database >/dev/null && update-desktop-database "$DATA/applications" || true
   echo "MaLiVe y todos sus datos eliminados."
 else

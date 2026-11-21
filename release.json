@@ -1,0 +1,6 @@
+{
+  "version": "0.1.5",
+  "python": "3.10",
+  "packages": ["umu-launcher", "icoutils", "msitools", "libnotify", "desktop-file-utils", "xdg-user-dirs"],
+  "any_of": [["zenity", "kdialog"]]
+}

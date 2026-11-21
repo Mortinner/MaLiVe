@@ -23,7 +23,8 @@ MIME_TYPES = [
 ]
 DEFAULTS_SECTION = "[Default Applications]"
 ADDED_SECTION = "[Added Associations]"
-TIMER = "malive-proton-update"
+TIMER = "malive-auto"
+LEGACY_TIMER = "malive-proton-update"
 
 
 def _previous_file() -> Path:
@@ -180,24 +181,28 @@ def malive_cli_path() -> str:
 
 
 def install_timer() -> bool:
+    """Temporizador diario: actualiza MaLiVe y, una vez por semana, GE-Proton."""
     d = paths.systemd_user_dir()
     d.mkdir(parents=True, exist_ok=True)
+    _remove_units(LEGACY_TIMER)  # el de la 0.1.x, solo para Proton
     (d / f"{TIMER}.service").write_text(
         "[Unit]\n"
-        "Description=MaLiVe: descargar la última versión de GE-Proton\n"
-        "After=network-online.target\n\n"
+        "Description=MaLiVe: actualizaciones automáticas (MaLiVe y GE-Proton)\n"
+        "After=network-online.target\n"
+        "Wants=network-online.target\n\n"
         "[Service]\n"
         "Type=oneshot\n"
-        f"ExecStart={malive_cli_path()} proton update --quiet\n"
+        f"ExecStart={malive_cli_path()} auto\n"
         "Nice=10\n"
         "IOSchedulingClass=idle\n"
     )
     (d / f"{TIMER}.timer").write_text(
         "[Unit]\n"
-        "Description=MaLiVe: comprobar GE-Proton semanalmente\n\n"
+        "Description=MaLiVe: buscar actualizaciones cada día\n\n"
         "[Timer]\n"
-        "OnCalendar=weekly\n"
-        "RandomizedDelaySec=6h\n"
+        "OnStartupSec=10min\n"
+        "OnCalendar=daily\n"
+        "RandomizedDelaySec=2h\n"
         "Persistent=true\n\n"
         "[Install]\n"
         "WantedBy=timers.target\n"
@@ -209,11 +214,18 @@ def install_timer() -> bool:
     return r.returncode == 0
 
 
-def remove_timer() -> None:
-    if shutil.which("systemctl"):
-        subprocess.run(["systemctl", "--user", "disable", "--now", f"{TIMER}.timer"], capture_output=True)
+def _remove_units(name: str) -> None:
     d = paths.systemd_user_dir()
+    if not (d / f"{name}.timer").exists() and not (d / f"{name}.service").exists():
+        return
+    if shutil.which("systemctl"):
+        subprocess.run(["systemctl", "--user", "disable", "--now", f"{name}.timer"], capture_output=True)
     for suffix in (".service", ".timer"):
-        (d / f"{TIMER}{suffix}").unlink(missing_ok=True)
+        (d / f"{name}{suffix}").unlink(missing_ok=True)
+
+
+def remove_timer() -> None:
+    _remove_units(TIMER)
+    _remove_units(LEGACY_TIMER)
     if shutil.which("systemctl"):
         subprocess.run(["systemctl", "--user", "daemon-reload"], capture_output=True)

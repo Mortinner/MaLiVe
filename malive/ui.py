@@ -48,17 +48,43 @@ def _run(cmd: list[str], **kw) -> subprocess.CompletedProcess:
     return subprocess.run(cmd, capture_output=True, text=True, **kw)
 
 
+def _can_notify() -> bool:
+    # Las notificaciones van por D-Bus: funcionan también desde el temporizador
+    # de systemd, que puede no tener DISPLAY.
+    if os.environ.get("MALIVE_NO_GUI") == "1" or not shutil.which("notify-send"):
+        return False
+    return bool(os.environ.get("DBUS_SESSION_BUS_ADDRESS") or os.environ.get("DISPLAY")
+                or os.environ.get("WAYLAND_DISPLAY"))
+
+
 def notify(message: str, title: str = APP_TITLE, icon: str = "application-x-ms-dos-executable") -> None:
-    if _no_gui():
+    if not _can_notify():
         print(f"[{title}] {message}", file=sys.stderr)
         return
-    if shutil.which("notify-send"):
-        subprocess.Popen(
-            ["notify-send", "-a", APP_TITLE, "-i", icon, title, message],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-        )
-    else:
+    # Se espera a notify-send (es instantáneo): en segundo plano, systemd o
+    # Plasma pueden matarlo al terminar MaLiVe y la notificación no sale.
+    try:
+        subprocess.run(["notify-send", "-a", APP_TITLE, "-i", icon, title, message],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
+    except (OSError, subprocess.TimeoutExpired):
         print(f"[{title}] {message}", file=sys.stderr)
+
+
+def notify_action(message: str, actions: dict[str, str], title: str = APP_TITLE,
+                  icon: str = "application-x-ms-dos-executable", timeout: int = 8 * 3600) -> str | None:
+    """Notificación con botones. Devuelve la clave del botón pulsado o None."""
+    if not _can_notify():
+        print(f"[{title}] {message}", file=sys.stderr)
+        return None
+    cmd = ["notify-send", "-a", APP_TITLE, "-i", icon, "--wait"]
+    for key, label in actions.items():
+        cmd.append(f"--action={key}={label}")
+    try:
+        r = subprocess.run([*cmd, title, message], capture_output=True, text=True, timeout=timeout)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    choice = r.stdout.strip().splitlines()[-1] if r.stdout.strip() else ""
+    return choice if choice in actions else None
 
 
 def info(message: str, title: str = APP_TITLE) -> None:
