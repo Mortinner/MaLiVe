@@ -337,8 +337,10 @@ def test_menu_rebuild_uses_desktop_language(env, monkeypatch):
 
     monkeypatch.delenv("LANG", raising=False)
     monkeypatch.delenv("LANGUAGE", raising=False)
+    monkeypatch.delenv("XDG_MENU_PREFIX", raising=False)
     monkeypatch.setattr(shortcuts, "desktop_shell_env",
-                        lambda: {"LANG": "es_ES.UTF-8", "LANGUAGE": "", "XDG_DATA_DIRS": "/usr/share"})
+                        lambda: {"LANG": "es_ES.UTF-8", "LANGUAGE": "", "XDG_DATA_DIRS": "/usr/share",
+                                 "XDG_MENU_PREFIX": "plasma-"})
     monkeypatch.setattr(shortcuts.shutil, "which", lambda c: f"/usr/bin/{c}")
     seen = []
 
@@ -347,12 +349,14 @@ def test_menu_rebuild_uses_desktop_language(env, monkeypatch):
         stderr = ""
 
     def fake_run(cmd, **kw):
-        seen.append((cmd[0].rsplit("/", 1)[-1], kw["env"].get("LANG"), kw["env"].get("XDG_DATA_DIRS")))
+        seen.append((cmd[0].rsplit("/", 1)[-1], kw["env"].get("LANG"), kw["env"].get("XDG_DATA_DIRS"),
+                     kw["env"].get("XDG_MENU_PREFIX"), "PATH" in kw["env"]))
         return R()
 
     monkeypatch.setattr(shortcuts.subprocess, "run", fake_run)
     shortcuts.refresh_menus()
-    assert ("kbuildsycoca6", "es_ES.UTF-8", "/usr/share") in seen
+    # El entorno de Plasma entero: idioma, carpetas y, sobre todo, XDG_MENU_PREFIX
+    assert ("kbuildsycoca6", "es_ES.UTF-8", "/usr/share", "plasma-", True) in seen
 
 
 def test_desktop_shell_env_reads_own_process(env, monkeypatch):

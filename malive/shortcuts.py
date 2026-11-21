@@ -321,26 +321,30 @@ def rewrite_all() -> int:
 # Variables de las que depende QUÉ base de datos de programas (ksycoca)
 # reconstruye kbuildsycoca6: el idioma y las carpetas del sistema. Su nombre es
 # ksycoca6_<idioma>_<hash de XDG_DATA_DIRS>.
-DESKTOP_ENV_VARS = ("LANG", "LANGUAGE", "LC_ALL", "LC_MESSAGES", "XDG_DATA_DIRS",
-                    "XDG_CONFIG_DIRS", "XDG_DATA_HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME")
+# Variables que, si faltan, hacen que kbuildsycoca6 construya OTRO menú:
+# el idioma (nombre del fichero ksycoca6_<idioma>_…), las carpetas XDG
+# (hash del nombre) y XDG_MENU_PREFIX (qué fichero de menú se usa:
+# plasma-applications.menu en Plasma; sin ella, el genérico applications.menu,
+# y las apps nuevas no salen en las categorías ni en «Todas las aplicaciones»).
+DIAG_VARS = ("LANG", "LANGUAGE", "XDG_MENU_PREFIX", "XDG_CURRENT_DESKTOP")
 
 
 def _menu_rebuild_env() -> dict[str, str]:
-    """Nuestro entorno, pero con el idioma y las carpetas del escritorio.
+    """El entorno COMPLETO del escritorio en marcha (Plasma o GNOME Shell).
 
-    Lanzado desde el menú de Plasma o desde el temporizador de systemd, MaLiVe
-    puede no tener LANG; entonces kbuildsycoca6 reconstruye otra base de datos
-    (ksycoca6_en-POSIX_…) en vez de la que lee Plasma (p. ej. ksycoca6_es_…)
-    y el menú no cambia.
+    MaLiVe puede arrancar desde el menú, desde Dolphin (como servicio de
+    systemd) o desde el temporizador, con un entorno distinto al de la sesión.
+    Copiar variables sueltas falló dos veces (primero LANG, luego
+    XDG_MENU_PREFIX), así que se usa el entorno entero del propio Plasma: es
+    lo mismo que ejecutar kbuildsycoca6 desde una terminal de la sesión.
     """
-    env = dict(os.environ)
     shell = desktop_shell_env()
-    if shell:
-        for var in DESKTOP_ENV_VARS:
-            if var in shell:
-                env[var] = shell[var]
-            else:
-                env.pop(var, None)
+    if not shell:
+        return dict(os.environ)
+    env = dict(shell)
+    for var in ("PATH", "HOME", "USER"):  # imprescindibles si faltaran
+        if var not in env and var in os.environ:
+            env[var] = os.environ[var]
     return env
 
 
@@ -375,8 +379,9 @@ def refresh_menus() -> None:
             log.warning("no se pudo ejecutar %s: %s", cmd[0], e)
         if cmd[0] == "kbuildsycoca6":
             break  # con la de Plasma 6 no hace falta la de Plasma 5
-    log.info("menú refrescado (%s; LANG=%s, LANGUAGE=%s, propio LANG=%s)", ", ".join(done),
-             env.get("LANG", "-"), env.get("LANGUAGE", "-"), os.environ.get("LANG", "-"))
+    used = ", ".join(f"{v}={env.get(v, '-')}" for v in DIAG_VARS)
+    own = ", ".join(f"{v}={os.environ.get(v, '-')}" for v in DIAG_VARS)
+    log.info("menú refrescado (%s) con [%s]; entorno propio [%s]", ", ".join(done), used, own)
 
 
 def register(app: App, candidates: list[Candidate]) -> list[Entry]:

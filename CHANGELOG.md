@@ -1,5 +1,15 @@
 # Cambios
 
+## 0.1.10
+- Arreglado (tercer intento, esta vez con la causa confirmada en el código):
+  los programas nuevos no aparecían en las categorías ni en «Todas las
+  aplicaciones» de Plasma. A MaLiVe, lanzado desde Dolphin o desde el menú,
+  le faltaba `XDG_MENU_PREFIX=plasma-`, así que `kbuildsycoca6` construía el
+  menú con el fichero genérico en vez de `plasma-applications.menu`. Ahora
+  reconstruye con el entorno completo de Plasma, igual que desde una
+  terminal de la sesión.
+- El registro anota el idioma, `XDG_MENU_PREFIX` y el escritorio usados.
+
 ## 0.1.9
 - **MaLiVe en inglés.** Los diálogos, avisos, errores y comandos de MaLiVe
   salen en español si el sistema está en español y en inglés en cualquier
