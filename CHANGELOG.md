@@ -11,6 +11,7 @@
   que se encarga de MaLiVe y, una vez por semana, de GE-Proton.
 - Las notificaciones ya no se pierden cuando MaLiVe termina justo después.
 - Licencia GPL-3.0.
+- README en inglés (`README.md`) y en español (`README.es.md`).
 
 ## 0.1.4
 - El menú de Plasma se actualiza al instalar o desinstalar (antes podían

@@ -1,157 +1,169 @@
 # MaLiVe — Make Linux Versatil
 
-Doble clic en un `.exe` o `.msi` desde el gestor de archivos y se ejecuta o se
-instala, como en Windows. Por debajo: **umu-launcher + GE-Proton**, un prefijo
-por app y accesos en el menú de aplicaciones con su icono.
+**English** · [Español](README.es.md)
 
-Versión **0.1.5**. Licencia GPL-3.0.
+Double-click a `.exe` or `.msi` in your file manager and it runs or installs,
+just like on Windows. Under the hood: **umu-launcher + GE-Proton**, one prefix
+per app, and app-menu entries with the program's own icon.
 
-## Instalación
+[![Latest release](https://img.shields.io/github/v/release/Mortinner/MaLiVe)](https://github.com/Mortinner/MaLiVe/releases/latest)
+[![Tests](https://github.com/Mortinner/MaLiVe/actions/workflows/ci.yml/badge.svg)](https://github.com/Mortinner/MaLiVe/actions/workflows/ci.yml)
+· License GPL-3.0
 
-1. Descarga `malive-X.Y.Z.zip` de la [última versión](https://github.com/Mortinner/MaLiVe/releases/latest)
-   y descomprímelo (clic derecho → Extraer aquí).
-2. Entra en la carpeta `malive-X.Y.Z` y haz doble clic en `install.sh` → **Ejecutar**
-   (o en una terminal: `./install.sh`).
+> **Note:** the user interface (installer, dialogs, notifications) is in
+> Spanish for now. An English translation is planned.
 
-Se abre un asistente con ventanas en la terminal (estilo instalador clásico
-de Linux; se maneja con ←/→, Intro y Esc): bienvenida, software necesario
-("¿Deseas continuar con la instalación?"), contraseña si hace falta instalar
-paquetes, progreso y final. Si se cancela, no se toca nada.
+## Installation
 
-- Si se lanza sin terminal (doble clic → Ejecutar), se vuelve a abrir solo en
-  la terminal del escritorio (Konsole, Ptyxis/GNOME Console, GNOME Terminal…).
-- La contraseña se pide en su propia ventana y se pasa a `sudo`; nunca se
-  guarda. Si no hay `sudo`, se usa `pkexec` (ventana del sistema).
-- Registro de la instalación: `~/.local/state/malive/install.log`.
-- `./install.sh --yes`: sin ventanas ni preguntas (instalación desatendida).
-- Necesita una distro basada en Arch (CachyOS, Arch, EndeavourOS, Manjaro) con
-  el repositorio `[multilib]` activo (ahí está `umu-launcher`); si no lo está,
-  el asistente explica cómo activarlo.
-- Después, MaLiVe **se actualiza solo** (ver más abajo). También puedes
-  actualizar a mano ejecutando el `install.sh` de la versión nueva, sin
-  desinstalar: conserva tus programas, sus datos y GE-Proton.
+1. Download `malive-X.Y.Z.zip` from the [latest release](https://github.com/Mortinner/MaLiVe/releases/latest)
+   and extract it (right click → Extract here).
+2. Open the `malive-X.Y.Z` folder and double-click `install.sh` → **Run**
+   (or, in a terminal: `./install.sh`).
 
-Desinstalar: `./uninstall.sh` (conserva tus apps) o `./uninstall.sh --purge`
-(lo borra todo). Los paquetes del sistema no se desinstalan, porque otros
-programas pueden usarlos.
+A terminal-based setup wizard opens (classic Linux installer look; use ←/→,
+Enter and Esc): welcome, required software, your password if packages need
+installing, progress, done. Cancelling changes nothing.
 
-## Qué hace al hacer doble clic
+- If launched without a terminal (double-click → Run), it reopens itself in
+  your desktop's terminal (Konsole, Ptyxis/GNOME Console, GNOME Terminal…).
+- The password is asked in its own window and passed to `sudo`; it is never
+  stored. Without `sudo`, `pkexec` is used (system password dialog).
+- Install log: `~/.local/state/malive/install.log`.
+- `./install.sh --yes`: no windows, no questions (unattended install).
+- Requires an Arch-based distro (CachyOS, Arch, EndeavourOS, Manjaro) with the
+  `[multilib]` repository enabled (that is where `umu-launcher` lives); if it
+  is disabled, the wizard explains how to enable it.
+- From then on MaLiVe **updates itself** (see below). You can also update by
+  hand by running the new version's `install.sh` without uninstalling: your
+  apps, their data and GE-Proton are kept.
 
-| Fichero | Qué pasa |
+Uninstall: `./uninstall.sh` (keeps your apps) or `./uninstall.sh --purge`
+(removes everything). System packages are left installed, since other
+programs may use them.
+
+## What happens on double-click
+
+| File | What happens |
 |---|---|
-| Instalador (NSIS, Inno Setup, InstallShield, WiX Burn, 7z SFX…, o con nombre tipo `setup.exe`) | Crea un prefijo para la app (o reutiliza el de la misma app si ya existe), lo instala y crea los `.desktop` a partir de los `.lnk` que deja el instalador |
-| `.msi` | Igual, con `msiexec /i … DISABLEADVTSHORTCUTS=1` (para que los accesos apunten al `.exe` real) |
-| `.exe` normal fuera de un prefijo | Programa portable: un prefijo por carpeta, que se reutiliza la próxima vez |
-| `.exe` o `.lnk` dentro de un prefijo de MaLiVe | Lo ejecuta en ese prefijo |
-| Programa de consola | Lo abre con `start /wait /unix …` para que tenga ventana de consola |
-| Programa de MS-DOS / 16 bits, `.dll` | Aviso explicando que no se puede |
+| Installer (NSIS, Inno Setup, InstallShield, WiX Burn, 7z SFX…, or named like `setup.exe`) | Creates a prefix for the app (or reuses the same app's prefix if it exists), runs the installer and creates `.desktop` entries from the `.lnk` shortcuts the installer leaves |
+| `.msi` | Same, using `msiexec /i … DISABLEADVTSHORTCUTS=1` (so shortcuts point to the real `.exe`) |
+| Plain `.exe` outside a prefix | Portable program: one prefix per folder, reused next time |
+| `.exe` or `.lnk` inside a MaLiVe prefix | Runs it in that prefix |
+| Console program | Opens it with `start /wait /unix …` so it gets a console window |
+| MS-DOS / 16-bit program, `.dll` | A message explaining it is not supported |
 
-GE-Proton y el runtime ya se descargan durante la instalación. Al crear el
-primer entorno de cada app se ve un diálogo "Preparando…".
+GE-Proton and the Steam runtime are downloaded during installation. Creating
+each app's environment for the first time shows a "Preparing…" dialog.
 
-Si el instalador no crea accesos directos, MaLiVe busca los `.exe` nuevos y,
-si hay varios, pregunta cuáles poner en el menú. Si no se instaló nada
-(instalador cancelado) y el prefijo era nuevo, lo borra.
+If the installer creates no shortcuts, MaLiVe looks for new `.exe` files and,
+if there are several, asks which ones to add to the menu. If nothing was
+installed (cancelled installer) and the prefix was new, it is removed.
 
-## Actualizaciones automáticas
+Each menu entry has an **Uninstall** action in its right-click menu, which
+removes the app together with its prefix.
 
-Un temporizador de systemd de usuario (`malive-auto.timer`) busca cada día
-una versión nueva en las [releases de GitHub](https://github.com/Mortinner/MaLiVe/releases):
+## Automatic updates
 
-1. Descarga el zip y comprueba su SHA-256.
-2. Si la versión nueva necesita software del sistema que no tienes, avisa con
-   una notificación y ofrece abrir el asistente (hace falta tu contraseña).
-3. Si no, la instala en segundo plano, comprueba que arranca y, si algo
-   falla, vuelve a la versión anterior. Al terminar avisa: «MaLiVe se ha
-   actualizado a la versión X».
+A systemd user timer (`malive-auto.timer`) checks the
+[GitHub releases](https://github.com/Mortinner/MaLiVe/releases) once a day:
 
-Una vez por semana descarga también el último GE-Proton, que solo se usa
-para los programas nuevos.
+1. Downloads the zip and verifies its SHA-256.
+2. If the new version needs system software you don't have, it shows a
+   notification offering to open the setup wizard (your password is needed).
+3. Otherwise it installs it in the background, checks that it starts and, if
+   anything fails, rolls back to the previous version. When done it shows a
+   notification.
+
+Once a week it also downloads the latest GE-Proton, which is only used for
+newly installed apps.
 
 ```
-malive update            actualizar ahora
-malive update --check    solo comprobar
+malive update            update now
+malive update --check    only check
 malive set auto-update off|on
 ```
 
-## Decisiones de diseño implementadas
+## Design decisions
 
-- **Proton fijado por app.** Cada app guarda la versión de GE-Proton con la
-  que se creó y siempre arranca con esa. Las versiones nuevas solo se usan para
-  apps nuevas; para migrar una app: `malive proton use APP GE-ProtonX-Y`.
-  Los Proton viven en `~/.local/share/malive/proton` (ni Steam ni umu los
-  borran). Si falta la versión fijada, se vuelve a descargar.
-- **Aislamiento (activado por defecto).** Proton recrea `Z: → /` en cada
-  arranque si no existe, así que en vez de borrarla MaLiVe la apunta a una
-  carpeta vacía. Se comparten Documentos (D:) y Descargas (E:), y la carpeta
-  del instalador/portable como Y: si no está ya dentro de esas.
-  Desactivar: `malive set isolate off` (global) o `--app ID`.
-- **Fin de instalación:** se escanean los accesos al terminar el instalador y
-  otra vez cuando ya no queda ningún proceso del prefijo (bootstrappers que se
-  relanzan, o la app que el instalador abre al acabar).
-- Si el prefijo ya tiene algo en marcha, se lanza con el verbo `run` de Proton
-  (en vez de `waitforexitandrun`) para no esperar a que se cierre lo otro.
+- **Proton pinned per app.** Each app remembers the GE-Proton version it was
+  created with and always runs with it. New versions are only used for new
+  apps; to migrate an app: `malive proton use APP GE-ProtonX-Y`. MaLiVe keeps
+  its Protons in `~/.local/share/malive/proton` (neither Steam nor umu delete
+  them). If the pinned version is missing, it is downloaded again.
+- **Isolation (on by default).** Proton recreates `Z: → /` on every start if
+  it is missing, so instead of deleting it MaLiVe points it to an empty folder.
+  Documents (D:) and Downloads (E:) are shared, plus the installer/portable
+  folder as Y: when it is not already inside those.
+  Disable with `malive set isolate off` (global) or `--app ID`.
+- **End of installation:** shortcuts are scanned when the installer exits and
+  again once no process is left in the prefix (bootstrappers that relaunch
+  themselves, or the app the installer opens when it finishes).
+- If something is already running in the prefix, the app is launched with
+  Proton's `run` verb (instead of `waitforexitandrun`) so it doesn't wait for
+  the other program to close.
 
-## Comandos
+## Commands
 
 ```
-malive list [--size]            apps instaladas
-malive remove APP [-y]          borrar app, prefijo y accesos
-malive shortcuts APP [--all]    volver a buscar accesos (--all: elegir entre todos los .exe)
-malive exec APP winecfg         winecfg, regedit, cmd, un .exe… dentro del prefijo
-malive winetricks APP dotnet48  componentes extra
+malive list [--size]            installed apps
+malive remove APP [-y]          remove app, prefix and menu entries
+malive shortcuts APP [--all]    rescan shortcuts (--all: choose among every .exe)
+malive exec APP winecfg         winecfg, regedit, cmd, any .exe… inside the prefix
+malive winetricks APP dotnet48  extra components
 malive proton list|update|use
-malive update [--check]         actualizar MaLiVe
+malive update [--check]         update MaLiVe
 malive set isolate on|off [--app APP]
-malive doctor                   comprobar dependencias e integración
-malive setup                    descargar GE-Proton y runtime y probar que Proton arranca
+malive doctor                   check dependencies and integration
+malive setup                    download GE-Proton and runtime, test that Proton starts
 malive integrate | unintegrate
 ```
 
-## Dónde está cada cosa
+## Where things live
 
 | | |
 |---|---|
-| Prefijos | `~/.local/share/malive/prefixes/<app>/` |
+| Prefixes | `~/.local/share/malive/prefixes/<app>/` |
 | GE-Proton | `~/.local/share/malive/proton/` |
-| Apps registradas | `~/.config/malive/apps/<app>.json` |
-| Configuración | `~/.config/malive/config.json` (`isolate`, `shared_folders`, `proton_auto_update`, …) |
-| Registro de MaLiVe | `~/.local/state/malive/malive.log` |
-| Salida de umu/Proton por app | `~/.local/state/malive/logs/<app>.log` |
-| Accesos del menú | `~/.local/share/applications/malive-<app>-<entrada>.desktop` |
+| Registered apps | `~/.config/malive/apps/<app>.json` |
+| Settings | `~/.config/malive/config.json` (`isolate`, `shared_folders`, `auto_update`, …) |
+| MaLiVe log | `~/.local/state/malive/malive.log` |
+| umu/Proton output per app | `~/.local/state/malive/logs/<app>.log` |
+| Menu entries | `~/.local/share/applications/malive-<app>-<entry>.desktop` |
 
-## Limitaciones conocidas (0.1)
+## Known limitations
 
-- **El aislamiento es parcial.** Quitar Z: evita que el programa vea `/` por
-  sus unidades, pero Wine aún puede abrir rutas `\\?\unix\…`, y el contenedor
-  de umu (pressure-vessel) comparte tu home. Es una mitigación, no un sandbox.
-- Sin `binfmt_misc` todavía (ejecutar `.exe` desde la terminal: usa `malive run`).
-- Un portable con nombre de instalador (p. ej. `setup-tool.exe` sin firma de
-  instalador) se trata como instalador; si no instala nada, su prefijo se borra.
-- La categoría del menú es siempre "Utilidades".
-- Fuera de alcance: antitrampas de kernel, drivers, DRM agresivo.
+- **Isolation is partial.** Removing Z: keeps programs from seeing `/`
+  through their drives, but Wine can still open `\\?\unix\…` paths, and umu's
+  container (pressure-vessel) shares your home. It is a mitigation, not a
+  sandbox.
+- No `binfmt_misc` yet (to run a `.exe` from a terminal, use `malive run`).
+- A portable program with an installer-like name (e.g. `setup-tool.exe`
+  without an installer signature) is treated as an installer; if it installs
+  nothing, its prefix is removed.
+- The menu category is always "Utility".
+- Out of scope: kernel-level anti-cheat, Windows drivers, aggressive DRM.
 
-## Publicar una versión
+## Releasing a version
 
-1. Sube la versión en `malive/__init__.py` y `release.json`, y añade su
-   sección en `CHANGELOG.md` (`## X.Y.Z`).
-2. Si la versión necesita paquetes nuevos del sistema, añádelos a
-   `release.json` **y** a `install.sh` (un test comprueba que coinciden).
+1. Bump the version in `malive/__init__.py` and `release.json`, and add its
+   section to `CHANGELOG.md` (`## X.Y.Z`).
+2. If the version needs new system packages, add them to `release.json`
+   **and** `install.sh` (a test checks that they match).
 3. `git commit`, `git tag vX.Y.Z`, `git push --tags`.
 
-GitHub Actions pasa los tests, crea `malive-X.Y.Z.zip` con su `.sha256` y
-publica la release con las notas del CHANGELOG. Los equipos con MaLiVe se
-actualizan solos en menos de un día.
+GitHub Actions runs the tests, builds `malive-X.Y.Z.zip` with its `.sha256`
+and publishes the release with the CHANGELOG notes. Machines running MaLiVe
+update themselves within a day.
 
-## Desarrollo
+## Development
 
 ```fish
 python -m venv .venv; and .venv/bin/pip install pytest pylnk3
 .venv/bin/python -m pytest -q
 ```
 
-Los tests usan un `umu-run` falso (`tests/fake_umu_run.py`) que imita la
-estructura de prefijo de umu/Proton, y binarios reales de prueba en
-`tests/fixtures` (PE con mingw, instalador NSIS con makensis, MSI con wixl;
-fuentes incluidas). Para ejecutar desde el repo sin instalar: `bin/malive`,
+The tests use a fake `umu-run` (`tests/fake_umu_run.py`) that mimics the
+umu/Proton prefix layout, and real test binaries in `tests/fixtures` (PE built
+with mingw, NSIS installer built with makensis, MSI built with wixl; sources
+included). To run from the repository without installing: `bin/malive`,
 `bin/malive-run`.
