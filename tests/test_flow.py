@@ -293,8 +293,10 @@ def test_refresh_menus_waits_for_kbuildsycoca(env, monkeypatch):
     monkeypatch.setattr(shortcuts.subprocess, "run", fake_run)
     shortcuts.refresh_menus()
     apps = str(paths.applications_dir())
-    # Reconstrucción completa: la incremental no redibuja el menú de Plasma
-    assert calls == [f"update-desktop-database {apps}", "kbuildsycoca6 --noincremental"]
+    # Reconstrucción completa (la incremental no redibuja el menú de Plasma),
+    # y otras dos programadas con systemd-run unos segundos después
+    assert calls == [f"update-desktop-database {apps}", "kbuildsycoca6 --noincremental",
+                     "systemd-run --user", "systemd-run --user"]
 
 
 def test_shortcut_appears_while_launched_app_is_still_open(env, monkeypatch):
@@ -368,3 +370,25 @@ def test_desktop_shell_env_reads_own_process(env, monkeypatch):
     # /proc/<pid>/environ es el entorno con el que arrancó el proceso
     assert found and "PATH" in found
     assert shortcuts.desktop_shell_env(names=("no-existe-este-proceso",)) is None
+
+
+def test_delayed_rebuilds_use_systemd_timer_with_desktop_env(env, monkeypatch):
+    from malive import shortcuts
+
+    monkeypatch.setattr(shortcuts.shutil, "which", lambda c: f"/usr/bin/{c}")
+    cmds = []
+
+    class R:
+        returncode = 0
+        stderr = ""
+
+    monkeypatch.setattr(shortcuts.subprocess, "run", lambda cmd, **kw: (cmds.append(cmd), R())[1])
+    env_desk = {"LANG": "es_ES.UTF-8", "XDG_MENU_PREFIX": "plasma-", "PATH": "/usr/bin", "SECRET": "x"}
+    shortcuts.schedule_delayed_rebuilds("/usr/bin/kbuildsycoca6", env_desk, delays=(5, 30))
+    assert len(cmds) == 2
+    first = cmds[0]
+    assert first[:3] == ["/usr/bin/systemd-run", "--user", "--quiet"]
+    assert "--on-active=5s" in first and "--on-active=30s" in cmds[1]
+    assert "--setenv=XDG_MENU_PREFIX=plasma-" in first and "--setenv=LANG=es_ES.UTF-8" in first
+    assert not any("SECRET" in a for a in first)  # solo las variables necesarias
+    assert first[-2:] == ["/usr/bin/kbuildsycoca6", "--noincremental"]

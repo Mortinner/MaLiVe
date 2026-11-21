@@ -1,5 +1,13 @@
 # Cambios
 
+## 0.1.11
+- Arreglado de verdad (causa comprobada a mano en Plasma 6): crear o borrar
+  un acceso y reconstruir el menú en el mismo instante no hace que Plasma
+  lo redibuje, ni siquiera desde una terminal; repetirlo unos segundos
+  después, sí. MaLiVe reconstruye al momento y programa dos
+  reconstrucciones más, a los 5 y a los 30 segundos, con un temporizador
+  de systemd que sobrevive al cierre de MaLiVe.
+
 ## 0.1.10
 - Arreglado (tercer intento, esta vez con la causa confirmada en el código):
   los programas nuevos no aparecían en las categorías ni en «Todas las

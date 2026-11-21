@@ -328,6 +328,50 @@ def rewrite_all() -> int:
 # y las apps nuevas no salen en las categorías ni en «Todas las aplicaciones»).
 DIAG_VARS = ("LANG", "LANGUAGE", "XDG_MENU_PREFIX", "XDG_CURRENT_DESKTOP")
 
+# Reconstrucciones extra tras la inmediata (segundos). Comprobado en CachyOS +
+# Plasma 6: crear un .desktop y reconstruir en el mismo instante no hace que
+# el menú se redibuje, ni siquiera desde una terminal; repetirlo unos segundos
+# después, sí.
+DELAYED_REBUILDS = (5, 30)
+# Lo que necesita kbuildsycoca6 para construir el mismo menú que usa el
+# escritorio; se pasa a las reconstrucciones diferidas.
+REBUILD_ENV_VARS = ("LANG", "LANGUAGE", "LC_ALL", "LC_MESSAGES", "XDG_MENU_PREFIX", "XDG_CURRENT_DESKTOP",
+                    "XDG_DATA_DIRS", "XDG_CONFIG_DIRS", "XDG_DATA_HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME",
+                    "HOME", "PATH")
+
+
+def schedule_delayed_rebuilds(exe: str, env: dict[str, str], delays=DELAYED_REBUILDS) -> list[str]:
+    """Programa kbuildsycoca6 --noincremental dentro de unos segundos.
+
+    Con `systemd-run --user --on-active`: un temporizador de systemd propio,
+    que sigue vivo aunque malive-run termine (lanzado desde el menú o desde
+    Dolphin, todo lo que deja en segundo plano muere con él).
+    """
+    runner = shutil.which("systemd-run")
+    done = []
+    for secs in delays:
+        if runner:
+            cmd = [runner, "--user", "--quiet", "--collect", f"--on-active={secs}s",
+                   "--timer-property=AccuracySec=1s"]
+            cmd += [f"--setenv={v}={env[v]}" for v in REBUILD_ENV_VARS if v in env]
+            cmd += [exe, "--noincremental"]
+        else:  # sin systemd: mejor esfuerzo
+            cmd = ["sh", "-c", f'sleep {secs}; exec "$0" --noincremental', exe]
+        try:
+            if runner:
+                r = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True,
+                                   timeout=15, env=env)
+                done.append(f"+{secs}s: {r.returncode}")
+                if r.returncode != 0:
+                    log.warning("no se pudo programar la reconstrucción del menú: %s", r.stderr.strip()[-300:])
+            else:
+                subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                 env=env, start_new_session=True)
+                done.append(f"+{secs}s: sh")
+        except (OSError, subprocess.TimeoutExpired) as e:
+            done.append(f"+{secs}s: {e}")
+    return done
+
 
 def _menu_rebuild_env() -> dict[str, str]:
     """El entorno COMPLETO del escritorio en marcha (Plasma o GNOME Shell).
@@ -377,6 +421,8 @@ def refresh_menus() -> None:
         except (OSError, subprocess.TimeoutExpired) as e:
             done.append(f"{cmd[0]}: {e}")
             log.warning("no se pudo ejecutar %s: %s", cmd[0], e)
+        if cmd[0] in ("kbuildsycoca6", "kbuildsycoca5"):
+            done += schedule_delayed_rebuilds(exe, env)
         if cmd[0] == "kbuildsycoca6":
             break  # con la de Plasma 6 no hace falta la de Plasma 5
     used = ", ".join(f"{v}={env.get(v, '-')}" for v in DIAG_VARS)
