@@ -9,6 +9,11 @@
   se corrige en las apps ya instaladas.
 - El registro anota cómo se ha refrescado el menú del escritorio, para
   diagnosticar los casos en que Plasma no muestra un programa nuevo.
+- El asistente de instalación habla español o inglés según el idioma del
+  sistema (inglés para cualquier idioma que no sea español).
+- Si el idioma del sistema no está bien configurado, las ventanas del
+  asistente ya no se descuadran.
+- Capturas del asistente en el README (inglés y español).
 
 ## 0.1.5
 - **Actualizaciones automáticas.** MaLiVe busca cada día una versión nueva en

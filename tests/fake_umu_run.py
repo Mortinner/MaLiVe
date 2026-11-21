@@ -12,6 +12,9 @@ from pathlib import Path
 import pylnk3
 
 args = sys.argv[1:]
+if os.environ.get("FAKE_UMU_DELAY"):  # para capturas de pantalla del progreso
+    import time as _t
+    _t.sleep(float(os.environ["FAKE_UMU_DELAY"]))
 prefix = Path(os.environ["WINEPREFIX"])
 assert os.environ.get("PROTONPATH"), "PROTONPATH no definido"
 assert os.environ.get("GAMEID"), "GAMEID no definido"

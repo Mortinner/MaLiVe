@@ -20,7 +20,19 @@ por app y accesos en el menú de aplicaciones con su icono.
 Se abre un asistente con ventanas en la terminal (estilo instalador clásico
 de Linux; se maneja con ←/→, Intro y Esc): bienvenida, software necesario
 ("¿Deseas continuar con la instalación?"), contraseña si hace falta instalar
-paquetes, progreso y final. Si se cancela, no se toca nada.
+paquetes, progreso y final. Si se cancela, no se toca nada. El asistente
+sale en español si tu sistema está en español, y en inglés en otro caso.
+
+<table>
+  <tr>
+    <td><img src="docs/screenshots/instalador-welcome.png" alt="Bienvenida"></td>
+    <td><img src="docs/screenshots/instalador-software.png" alt="Software necesario"></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/instalador-installing.png" alt="Instalando"></td>
+    <td><img src="docs/screenshots/instalador-done.png" alt="Instalación terminada"></td>
+  </tr>
+</table>
 
 - Si se lanza sin terminal (doble clic → Ejecutar), se vuelve a abrir solo en
   la terminal del escritorio (Konsole, Ptyxis/GNOME Console, GNOME Terminal…).

@@ -22,7 +22,19 @@ per app, and app-menu entries with the program's own icon.
 
 A terminal-based setup wizard opens (classic Linux installer look; use ←/→,
 Enter and Esc): welcome, required software, your password if packages need
-installing, progress, done. Cancelling changes nothing.
+installing, progress, done. Cancelling changes nothing. The wizard speaks
+Spanish if your system is in Spanish and English otherwise.
+
+<table>
+  <tr>
+    <td><img src="docs/screenshots/installer-welcome.png" alt="Welcome screen"></td>
+    <td><img src="docs/screenshots/installer-software.png" alt="Required software"></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/installer-installing.png" alt="Installing"></td>
+    <td><img src="docs/screenshots/installer-done.png" alt="Setup complete"></td>
+  </tr>
+</table>
 
 - If launched without a terminal (double-click → Run), it reopens itself in
   your desktop's terminal (Konsole, Ptyxis/GNOME Console, GNOME Terminal…).

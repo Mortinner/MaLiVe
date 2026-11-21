@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Instalador de MaLiVe — asistente con ventanas en la terminal.
+# MaLiVe installer — terminal setup wizard (Spanish or English, following the system language).
 #
-#   ./install.sh          (o doble clic → "Ejecutar"): abre una terminal con el asistente
-#   ./install.sh --yes    sin preguntas (instalaciones desatendidas)
+#   ./install.sh          (or double-click → "Run"): opens a terminal with the wizard
+#   ./install.sh --yes    no questions (unattended install)
 #
-# Se ejecuta como tu usuario; solo pide la contraseña para instalar el
-# software del sistema que falte.
+# Runs as your user; it only asks for your password to install missing
+# system packages.
 
 set -uo pipefail
 
@@ -24,6 +24,13 @@ for arg in "$@"; do
     -h|--help) sed -n '2,9p' "$SCRIPT" | sed 's/^# \{0,1\}//'; exit 0 ;;
   esac
 done
+
+# Idioma de los textos: español si el sistema está en español; inglés en otro caso.
+# (MALIVE_LANG=es|en lo fuerza.)
+_lang="${LANGUAGE:-}"; _lang="${_lang%%:*}"
+[ -n "$_lang" ] || _lang="${LC_ALL:-${LC_MESSAGES:-${LANG:-}}}"
+case "${MALIVE_LANG:-$_lang}" in es*|ES*) UI_LANG=es ;; *) UI_LANG=en ;; esac
+T() { if [ "$UI_LANG" = es ]; then printf '%s' "$1"; else printf '%s' "$2"; fi; }
 
 mkdir -p "$LOGDIR"
 [ -z "${MALIVE_RELAUNCHED:-}" ] && : > "$LOG"
@@ -74,8 +81,10 @@ if [ "$ASSUME_YES" = 0 ] && { [ ! -t 0 ] || [ ! -t 1 ]; }; then
   if [ -z "${MALIVE_RELAUNCHED:-}" ] && graphical && relaunch_in_terminal "$@"; then
     exit 0
   fi
-  msg="No he podido abrir una terminal para instalar MaLiVe.
-Abre una terminal en esta carpeta y escribe:  ./install.sh"
+  msg="$(T "No he podido abrir una terminal para instalar MaLiVe.
+Abre una terminal en esta carpeta y escribe:  ./install.sh" \
+"Could not open a terminal to install MaLiVe.
+Open a terminal in this folder and type:  ./install.sh")"
   if graphical && command -v kdialog >/dev/null; then kdialog --title "MaLiVe" --error "$msg"
   elif graphical && command -v zenity >/dev/null; then zenity --error --title "MaLiVe" --text "$msg"
   elif command -v notify-send >/dev/null; then notify-send "MaLiVe" "$msg"
@@ -87,10 +96,11 @@ fi
 # 1. Ventanas en la terminal (estilo whiptail, sin dependencias)
 # ==========================================================================
 
-case "${LC_ALL:-${LC_CTYPE:-${LANG:-}}}" in
-  *UTF-8*|*utf8*|*UTF8*|*utf-8*) ;;
-  *) export LC_ALL=C.UTF-8 ;;
-esac
+# Los anchos de las ventanas se calculan en caracteres: si el idioma del
+# sistema no es UTF-8 o no está generado (bash contaría bytes), usamos C.UTF-8.
+# El idioma de los textos (UI_LANG) ya se decidió antes y no cambia.
+_probe="…"
+if [ "${#_probe}" -ne 1 ]; then export LC_ALL=C.UTF-8; fi
 
 E=$'\e'
 C_BG="${E}[0;37;44m"          # fondo azul
@@ -172,8 +182,8 @@ draw_background() {
   blank="$(printf '%*s' "$COLS" '')"
   printf '%s' "$C_BG"
   for ((r = 1; r <= ROWS; r++)); do at "$r" 1; printf '%s' "$blank"; done
-  at 1 2; printf '%s' "${E}[1;37;44mInstalación de MaLiVe ${VERSION}${C_BG}"
-  at "$ROWS" 2; printf '%s' "←/→ o Tab: elegir   Intro: aceptar   Esc: cancelar"
+  at 1 2; printf '%s' "${E}[1;37;44m$(T "Instalación de MaLiVe" "MaLiVe Setup") ${VERSION}${C_BG}"
+  at "$ROWS" 2; printf '%s' "$(T "←/→ o Tab: elegir   Intro: aceptar   Esc: cancelar" "←/→ or Tab: select   Enter: accept   Esc: cancel")"
 }
 
 # Dibuja el marco de una ventana. Deja en WX, WY (esquina), WW (ancho
@@ -271,15 +281,16 @@ password() {
     local w=$(( COLS - 8 )); [ "$w" -gt 74 ] && w=74
     wrap "$text" $(( w - 4 ))
     local lines=("${WRAP[@]}") i
-    frame "Contraseña" $(( ${#lines[@]} + 6 ))
+    frame "$(T "Contraseña" "Password")" $(( ${#lines[@]} + 6 ))
     for i in "${!lines[@]}"; do text_line $((i + 2)) "${lines[$i]}"; done
     local frow=$(( ${#lines[@]} + 3 ))
     local fw=$(( WW > 40 ? 40 : WW ))
-    at $((WY + frow)) $((WX + 2)); printf '%s' "${C_WIN}Contraseña: "
+    local label; label="$(T "Contraseña: " "Password:   ")"
+    at $((WY + frow)) $((WX + 2)); printf '%s' "${C_WIN}${label}"
     local dots; dots="$(printf '%*s' "${#pw}" '' | sed 's/ /•/g')"
     printf '%s' "$C_FIELD"; pad "$dots" $(( fw - 12 )); printf '%s' "$C_WIN"
     [ -n "$err" ] && text_line $(( frow + 1 )) "$err" "$C_ERR"
-    draw_buttons $(( frow + 3 )) "$sel" "Aceptar" "Cancelar"
+    draw_buttons $(( frow + 3 )) "$sel" "$(T "Aceptar" "OK")" "$(T "Cancelar" "Cancel")"
     read_key
     case "$KEY" in
       enter) if [ "$sel" -eq 1 ]; then return 1; fi; PASSWORD="$pw"; return 0 ;;
@@ -298,7 +309,7 @@ SPIN=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏)
 draw_progress() { # tick estado_texto
   local tick="$1" status="$2" i mark color
   draw_background
-  frame "Instalando" $(( ${#STEP_LABELS[@]} + 4 ))
+  frame "$(T "Instalando" "Installing")" $(( ${#STEP_LABELS[@]} + 4 ))
   for i in "${!STEP_LABELS[@]}"; do
     case "${STEP_STATE[$i]}" in
       ok)      mark="✔"; color="$C_OK" ;;
@@ -315,7 +326,7 @@ draw_progress() { # tick estado_texto
 
 last_log_line() {
   tail -c 400 "$LOG" 2>/dev/null | tr '\r' '\n' | sed 's/\x1b\[[0-9;]*[A-Za-z]//g' \
-    | sed 's/^[0-9:]* //; s/^[[:space:]]*//' | grep -v -e '^$' -e '^==' | tail -n 1
+    | sed 's/^[0-9:]* //; s/^[[:space:]]*//' | grep -e '^» ' -e '%' | tail -n 1 | sed 's/^» //'
 }
 
 # run_step índice función → 0 si va bien
@@ -341,13 +352,17 @@ say() { printf '%s\n' "$*"; }
 fatal() { # título texto
   log "ERROR: $1: $2"
   if [ "$ASSUME_YES" = 1 ]; then say "ERROR: $2" >&2; exit 1; fi
-  dialog "$1" "$2"$'\n\n'"Registro de la instalación: $LOG" "Cerrar"
+  dialog "$1" "$2"$'\n\n'"$(T "Registro de la instalación" "Installation log"): $LOG" "$(T "Cerrar" "Close")"
   exit 1
 }
 
 cancelled() {
   log "cancelado por el usuario"
-  dialog "Instalación cancelada" "No se ha instalado ni cambiado nada."$'\n\n'"Puedes volver a ejecutar el instalador cuando quieras." "Cerrar"
+  dialog "$(T "Instalación cancelada" "Setup cancelled")" "$(T "No se ha instalado ni cambiado nada.
+
+Puedes volver a ejecutar el instalador cuando quieras." "Nothing has been installed or changed.
+
+You can run the installer again whenever you like.")" "$(T "Cerrar" "Close")"
   exit 1
 }
 
@@ -358,29 +373,35 @@ cancelled() {
 log "MaLiVe $VERSION, usuario $(id -un), escritorio ${XDG_CURRENT_DESKTOP:-?}, TERM=${TERM:-?}"
 
 if [ "$(id -u)" -eq 0 ]; then
-  fatal "Ejecución como administrador" "No ejecutes el instalador con sudo ni como root: MaLiVe se instala en tu carpeta personal.
+  fatal "$(T "Ejecución como administrador" "Running as administrator")" "$(T "No ejecutes el instalador con sudo ni como root: MaLiVe se instala en tu carpeta personal.
 
-Ciérralo y vuelve a abrirlo con tu usuario normal. Te pedirá la contraseña solo cuando haga falta."
+Ciérralo y vuelve a abrirlo con tu usuario normal. Te pedirá la contraseña solo cuando haga falta." \
+"Don't run the installer with sudo or as root: MaLiVe installs into your home folder.
+
+Close it and open it again as your normal user. It will ask for your password only when needed.")"
 fi
 
 if ! command -v pacman >/dev/null; then
-  fatal "Distribución no compatible" "Por ahora el instalador de MaLiVe solo funciona en distribuciones basadas en Arch Linux (CachyOS, Arch, EndeavourOS, Manjaro…).
+  fatal "$(T "Distribución no compatible" "Unsupported distribution")" "$(T "Por ahora el instalador de MaLiVe solo funciona en distribuciones basadas en Arch Linux (CachyOS, Arch, EndeavourOS, Manjaro…).
 
-Software que necesita MaLiVe: umu-launcher, icoutils, msitools, libnotify, desktop-file-utils, xdg-user-dirs y zenity o kdialog."
+Software que necesita MaLiVe: umu-launcher, icoutils, msitools, libnotify, desktop-file-utils, xdg-user-dirs y zenity o kdialog." \
+"For now the MaLiVe installer only works on Arch-based distributions (CachyOS, Arch, EndeavourOS, Manjaro…).
+
+Software MaLiVe needs: umu-launcher, icoutils, msitools, libnotify, desktop-file-utils, xdg-user-dirs and zenity or kdialog.")"
 fi
 
 PKGS=() WHY=()
 need() { pacman -Qq "$1" >/dev/null 2>&1 || { PKGS+=("$1"); WHY+=("$2"); }; }
-command -v python3 >/dev/null || need python "lenguaje en el que está hecho MaLiVe"
-need umu-launcher       "ejecuta los programas de Windows"
-need icoutils           "iconos de los programas en el menú"
-need msitools           "lee los instaladores .msi"
-need libnotify          "avisos en el escritorio"
-need desktop-file-utils "añade los programas al menú"
-need xdg-user-dirs      "localiza Documentos y Descargas"
+command -v python3 >/dev/null || need python "$(T "lenguaje en el que está hecho MaLiVe" "the language MaLiVe is written in")"
+need umu-launcher       "$(T "ejecuta los programas de Windows" "runs the Windows programs")"
+need icoutils           "$(T "iconos de los programas en el menú" "program icons in the menu")"
+need msitools           "$(T "lee los instaladores .msi" "reads .msi installers")"
+need libnotify          "$(T "avisos en el escritorio" "desktop notifications")"
+need desktop-file-utils "$(T "añade los programas al menú" "adds programs to the menu")"
+need xdg-user-dirs      "$(T "localiza Documentos y Descargas" "finds your Documents and Downloads")"
 if ! pacman -Qq zenity >/dev/null 2>&1 && ! pacman -Qq kdialog >/dev/null 2>&1; then
-  if [[ "${XDG_CURRENT_DESKTOP:-}" == *KDE* ]]; then need kdialog "ventanas de aviso y progreso"
-  else need zenity "ventanas de aviso y progreso"; fi
+  if [[ "${XDG_CURRENT_DESKTOP:-}" == *KDE* ]]; then need kdialog "$(T "ventanas de aviso y progreso" "message and progress windows")"
+  else need zenity "$(T "ventanas de aviso y progreso" "message and progress windows")"; fi
 fi
 log "faltan: ${PKGS[*]:-nada}"
 
@@ -389,18 +410,25 @@ if [ "${#PKGS[@]}" -gt 0 ]; then
   for p in "${PKGS[@]}"; do pacman -Si "$p" >/dev/null 2>&1 || unavailable+=("$p"); done
   if [ "${#unavailable[@]}" -gt 0 ]; then
     if [[ " ${unavailable[*]} " == *" umu-launcher "* ]]; then
-      fatal "Falta un repositorio" "El programa umu-launcher está en el repositorio «multilib», que en tu sistema está desactivado.
+      fatal "$(T "Falta un repositorio" "Missing repository")" "$(T "El programa umu-launcher está en el repositorio «multilib», que en tu sistema está desactivado.
 
-Para activarlo, abre /etc/pacman.conf como administrador y quita el # de estas dos líneas:
+Para activarlo, abre /etc/pacman.conf como administrador y quita el # de estas dos líneas:" \
+"umu-launcher lives in the «multilib» repository, which is disabled on your system.
+
+To enable it, open /etc/pacman.conf as administrator and remove the # from these two lines:")
 
     [multilib]
     Include = /etc/pacman.d/mirrorlist
 
-Después actualiza el sistema (sudo pacman -Syu) y vuelve a ejecutar el instalador."
+$(T "Después actualiza el sistema (sudo pacman -Syu) y vuelve a ejecutar el instalador." \
+"Then update the system (sudo pacman -Syu) and run the installer again.")"
     fi
-    fatal "Software no encontrado" "No encuentro en los repositorios: ${unavailable[*]}
+    fatal "$(T "Software no encontrado" "Software not found")" "$(T "No encuentro en los repositorios: ${unavailable[*]}
 
-Puede que la lista de paquetes esté desactualizada. Actualiza el sistema (sudo pacman -Syu) y vuelve a ejecutar el instalador."
+Puede que la lista de paquetes esté desactualizada. Actualiza el sistema (sudo pacman -Syu) y vuelve a ejecutar el instalador." \
+"Not found in the repositories: ${unavailable[*]}
+
+The package list may be out of date. Update the system (sudo pacman -Syu) and run the installer again.")"
   fi
 fi
 
@@ -414,44 +442,57 @@ log "versión instalada: ${INSTALLED:-ninguna}"
 if [ "$ASSUME_YES" = 0 ]; then
   if [ -n "$INSTALLED" ]; then
     if [ "$INSTALLED" = "$VERSION" ]; then
-      what="MaLiVe ${VERSION} ya está instalado. Este asistente lo reinstalará."
+      what="$(T "MaLiVe ${VERSION} ya está instalado. Este asistente lo reinstalará." \
+                 "MaLiVe ${VERSION} is already installed. This wizard will reinstall it.")"
     else
-      what="Este asistente actualizará MaLiVe de la versión ${INSTALLED} a la ${VERSION}."
+      what="$(T "Este asistente actualizará MaLiVe de la versión ${INSTALLED} a la ${VERSION}." \
+                 "This wizard will update MaLiVe from version ${INSTALLED} to ${VERSION}.")"
     fi
-    dialog "Bienvenido" "${what}
+    dialog "$(T "Bienvenido" "Welcome")" "${what}
 
-Tus programas instalados, sus datos y GE-Proton se conservan." "Siguiente" "Cancelar"
+$(T "Tus programas instalados, sus datos y GE-Proton se conservan." "Your installed programs, their data and GE-Proton are kept.")" \
+      "$(T "Siguiente" "Next")" "$(T "Cancelar" "Cancel")"
   else
-  dialog "Bienvenido" "Este asistente instalará MaLiVe ${VERSION} en tu equipo.
+  dialog "$(T "Bienvenido" "Welcome")" "$(T "Este asistente instalará MaLiVe ${VERSION} en tu equipo.
 
 Con MaLiVe podrás abrir programas de Windows (.exe y .msi) con un doble clic, igual que en Windows: se instalan, aparecen en el menú de aplicaciones con su icono y se abren desde ahí." \
-    "Siguiente" "Cancelar"
+"This wizard will install MaLiVe ${VERSION} on your computer.
+
+With MaLiVe you can open Windows programs (.exe and .msi) with a double click, just like on Windows: they get installed, show up in your app menu with their icon and open from there.")" \
+    "$(T "Siguiente" "Next")" "$(T "Cancelar" "Cancel")"
   fi
   [ "$CHOICE" -eq 0 ] || cancelled
 
   if compgen -G "$DATA/proton/GE-Proton*/proton" >/dev/null; then
-    dl="GE-Proton ya está descargado: no hace falta descargar nada grande."
+    dl="$(T "GE-Proton ya está descargado: no hace falta descargar nada grande." \
+             "GE-Proton is already downloaded: nothing big to download.")"
   else
-    dl="También se descargarán GE-Proton y el entorno de Steam (alrededor de 1 GB)."
+    dl="$(T "También se descargarán GE-Proton y el entorno de Steam (alrededor de 1 GB)." \
+             "GE-Proton and the Steam runtime will also be downloaded (about 1 GB).")"
   fi
-  if [ -n "$INSTALLED" ]; then action="actualización"; else action="instalación"; fi
+  if [ -n "$INSTALLED" ]; then
+    ask="$(T "¿Deseas continuar con la actualización?" "Do you want to continue with the update?")"
+  else
+    ask="$(T "¿Deseas continuar con la instalación?" "Do you want to continue with the installation?")"
+  fi
   if [ "${#PKGS[@]}" -gt 0 ]; then
     list=""
     for i in "${!PKGS[@]}"; do list+="  • ${PKGS[$i]}: ${WHY[$i]}"$'\n'; done
-    body="Para funcionar, MaLiVe necesita el siguiente software de los repositorios oficiales de tu sistema:
+    body="$(T "Para funcionar, MaLiVe necesita el siguiente software de los repositorios oficiales de tu sistema:" \
+               "To work, MaLiVe needs the following software from your system's official repositories:")
 
 ${list}
 ${dl}
 
-¿Deseas continuar con la ${action}?"
+${ask}"
   else
-    body="Todo el software que necesita MaLiVe ya está instalado.
+    body="$(T "Todo el software que necesita MaLiVe ya está instalado." "All the software MaLiVe needs is already installed.")
 
 ${dl}
 
-¿Deseas continuar con la ${action}?"
+${ask}"
   fi
-  dialog "Software necesario" "$body" "Continuar" "Cancelar"
+  dialog "$(T "Software necesario" "Required software")" "$body" "$(T "Continuar" "Continue")" "$(T "Cancelar" "Cancel")"
   [ "$CHOICE" -eq 0 ] || cancelled
 fi
 
@@ -462,24 +503,28 @@ if [ "${#PKGS[@]}" -gt 0 ]; then
     ELEVATE=(sudo)
     if ! sudo -n true 2>/dev/null; then
       if [ "$ASSUME_YES" = 1 ]; then
-        sudo -v || { say "No se pudo obtener permiso de administrador." >&2; exit 1; }
+        sudo -v || { say "$(T "No se pudo obtener permiso de administrador." "Could not get administrator permission.")" >&2; exit 1; }
       else
         tries=0 err=""
         while :; do
-          password "Para instalar el software necesario hace falta la contraseña de administrador (la misma con la que inicias sesión)." "$err" || cancelled
+          password "$(T "Para instalar el software necesario hace falta la contraseña de administrador (la misma con la que inicias sesión)." \
+                         "Installing the required software needs the administrator password (the one you log in with).")" "$err" || cancelled
           if printf '%s\n' "$PASSWORD" | sudo -S -p '' -v 2>/dev/null; then break; fi
           tries=$((tries + 1))
-          [ "$tries" -ge 3 ] && fatal "Contraseña" "No se ha podido validar la contraseña.
+          [ "$tries" -ge 3 ] && fatal "$(T "Contraseña" "Password")" "$(T "No se ha podido validar la contraseña.
 
-Comprueba que es la correcta y que tu usuario tiene permisos de administrador."
-          err="Contraseña incorrecta. Inténtalo de nuevo."
+Comprueba que es la correcta y que tu usuario tiene permisos de administrador." \
+"The password could not be verified.
+
+Check that it is correct and that your user has administrator rights.")"
+          err="$(T "Contraseña incorrecta. Inténtalo de nuevo." "Wrong password. Please try again.")"
         done
       fi
     fi
   elif command -v pkexec >/dev/null; then
     ELEVATE=(pkexec)   # pide la contraseña en una ventana del sistema
   else
-    fatal "Sin permisos" "No encuentro sudo ni pkexec para instalar el software necesario."
+    fatal "$(T "Sin permisos" "No permissions")" "$(T "No encuentro sudo ni pkexec para instalar el software necesario." "Neither sudo nor pkexec was found to install the required software.")"
   fi
 fi
 
@@ -488,7 +533,7 @@ fi
 # ==========================================================================
 
 step_packages() {
-  echo "Instalando ${PKGS[*]}…"
+  echo "» $(T "Instalando" "Installing") ${PKGS[*]}…"
   if [ "${ELEVATE[0]}" = sudo ] && [ -n "$PASSWORD" ]; then
     printf '%s\n' "$PASSWORD" | sudo -S -p '' pacman -S --needed --noconfirm "${PKGS[@]}"
   else
@@ -500,7 +545,7 @@ step_copy() {
   local py
   py="$(command -v python3)"; [ -x /usr/bin/python3 ] && py=/usr/bin/python3
   "$py" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)' \
-    || { echo "Hace falta Python 3.10 o superior"; return 1; }
+    || { T "Hace falta Python 3.10 o superior" "Python 3.10 or newer is required"; echo; return 1; }
   mkdir -p "$LIB" "$BIN" || return 1
   rm -rf "$LIB/malive.new"
   cp -r "$SRC/malive" "$LIB/malive.new" || return 1
@@ -512,15 +557,24 @@ step_copy() {
     printf '#!%s\nimport sys\nsys.path.insert(0, "%s")\nfrom malive.%s import main\nsys.exit(main())\n' \
       "$py" "$LIB" "$mod" > "$BIN/$name" && chmod +x "$BIN/$name" || return 1
   done
-  echo "MaLiVe copiado en $LIB"
+  echo "» $(T "MaLiVe copiado en" "MaLiVe copied to") $LIB"
 }
 
-step_integrate() { "$BIN/malive" integrate && "$BIN/malive" refresh; }
-step_setup()     { "$BIN/malive" setup; }
+step_integrate() {
+  echo "» $(T "Asociando archivos y actualizando el menú…" "Associating files and updating the menu…")"
+  "$BIN/malive" integrate && "$BIN/malive" refresh
+}
+step_setup() {
+  echo "» $(T "Preparando GE-Proton y el entorno de Steam (unos minutos la primera vez)…" \
+               "Preparing GE-Proton and the Steam runtime (a few minutes the first time)…")"
+  "$BIN/malive" setup
+}
 
 STEP_LABELS=()
-[ "${#PKGS[@]}" -gt 0 ] && STEP_LABELS+=("Instalar el software necesario")
-STEP_LABELS+=("Copiar MaLiVe" "Asociar los archivos .exe, .msi y .lnk" "Descargar GE-Proton y preparar el entorno")
+[ "${#PKGS[@]}" -gt 0 ] && STEP_LABELS+=("$(T "Instalar el software necesario" "Install the required software")")
+STEP_LABELS+=("$(T "Copiar MaLiVe" "Copy MaLiVe")"
+              "$(T "Asociar los archivos .exe, .msi y .lnk" "Associate .exe, .msi and .lnk files")"
+              "$(T "Descargar GE-Proton y preparar el entorno" "Download GE-Proton and prepare the runtime")")
 STEP_FUNCS=()
 [ "${#PKGS[@]}" -gt 0 ] && STEP_FUNCS+=(step_packages)
 STEP_FUNCS+=(step_copy step_integrate step_setup)
@@ -530,9 +584,9 @@ LAST=$(( ${#STEP_FUNCS[@]} - 1 ))
 if [ "$ASSUME_YES" = 1 ]; then
   for i in "${!STEP_FUNCS[@]}"; do
     say "→ ${STEP_LABELS[$i]}"
-    "${STEP_FUNCS[$i]}" 2>&1 | tee -a "$LOG" || { [ "$i" -eq "$LAST" ] || { say "Error. Registro: $LOG" >&2; exit 1; }; }
+    "${STEP_FUNCS[$i]}" 2>&1 | tee -a "$LOG" || { [ "$i" -eq "$LAST" ] || { say "Error. Log: $LOG" >&2; exit 1; }; }
   done
-  say "MaLiVe instalado."
+  say "$(T "MaLiVe instalado." "MaLiVe installed.")"
   exit 0
 fi
 
@@ -550,27 +604,38 @@ for i in "${!STEP_FUNCS[@]}"; do
     hint=""
     [ "${STEP_FUNCS[$i]}" = step_packages ] && hint="
 
-Si no se pudo descargar algún paquete, actualiza el sistema (sudo pacman -Syu) y vuelve a ejecutar el instalador."
-    fatal "Error en la instalación" "Ha fallado el paso «${STEP_LABELS[$i]}».${hint}"
+$(T "Si no se pudo descargar algún paquete, actualiza el sistema (sudo pacman -Syu) y vuelve a ejecutar el instalador." \
+     "If a package could not be downloaded, update the system (sudo pacman -Syu) and run the installer again.")"
+    fatal "$(T "Error en la instalación" "Installation error")" "$(T "Ha fallado el paso «${STEP_LABELS[$i]}»." "The step «${STEP_LABELS[$i]}» failed.")${hint}"
   fi
 done
 PASSWORD=""
-draw_progress 0 "Terminado."
+draw_progress 0 "$(T "Terminado." "Done.")"
 sleep 0.6
 
+FINISH="$(T "Finalizar" "Finish")"
 if [ "$SETUP_FAILED" = 1 ]; then
-  dialog "Instalación terminada" "MaLiVe se ha instalado, pero no se ha podido preparar GE-Proton (¿sin conexión a Internet?).
+  dialog "$(T "Instalación terminada" "Setup complete")" "$(T "MaLiVe se ha instalado, pero no se ha podido preparar GE-Proton (¿sin conexión a Internet?).
 
-No pasa nada: se preparará automáticamente la primera vez que abras un programa de Windows.
+No pasa nada: se preparará automáticamente la primera vez que abras un programa de Windows." \
+"MaLiVe has been installed, but GE-Proton could not be prepared (no Internet connection?).
 
-Registro: $LOG" "Finalizar"
+No problem: it will be prepared automatically the first time you open a Windows program.")
+
+$(T "Registro" "Log"): $LOG" "$FINISH"
 elif [ -n "$INSTALLED" ] && [ "$INSTALLED" != "$VERSION" ]; then
-  dialog "Actualización terminada" "MaLiVe se ha actualizado a la versión ${VERSION}.
+  dialog "$(T "Actualización terminada" "Update complete")" "$(T "MaLiVe se ha actualizado a la versión ${VERSION}.
 
-Tus programas siguen en el menú de aplicaciones. Ya puedes borrar la carpeta del instalador." "Finalizar"
+Tus programas siguen en el menú de aplicaciones. Ya puedes borrar la carpeta del instalador." \
+"MaLiVe has been updated to version ${VERSION}.
+
+Your programs are still in the app menu. You can now delete the installer folder.")" "$FINISH"
 else
-  dialog "Instalación terminada" "MaLiVe se ha instalado correctamente.
+  dialog "$(T "Instalación terminada" "Setup complete")" "$(T "MaLiVe se ha instalado correctamente.
 
-Para usarlo, haz doble clic en cualquier archivo .exe o .msi desde tu gestor de archivos. Los programas que instales aparecerán en el menú de aplicaciones." "Finalizar"
+Para usarlo, haz doble clic en cualquier archivo .exe o .msi desde tu gestor de archivos. Los programas que instales aparecerán en el menú de aplicaciones." \
+"MaLiVe has been installed successfully.
+
+To use it, double-click any .exe or .msi file in your file manager. The programs you install will appear in your app menu.")" "$FINISH"
 fi
 exit 0
