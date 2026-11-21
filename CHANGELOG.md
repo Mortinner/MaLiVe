@@ -1,5 +1,14 @@
 # Cambios
 
+## 0.1.8
+- Arreglado de verdad el menú de Plasma que no se actualizaba al instalar o
+  desinstalar. Cuando MaLiVe se abre desde el menú (p. ej. «Desinstalar») o
+  desde el temporizador, puede no recibir el idioma de la sesión, y la base
+  de datos de programas que reconstruía era otra (`ksycoca6_en-POSIX_…`) en
+  vez de la que lee Plasma (`ksycoca6_es_…`). Ahora usa el idioma y las
+  carpetas del propio Plasma (o GNOME Shell) que está en marcha.
+- El registro anota con qué idioma se reconstruyó el menú.
+
 ## 0.1.7
 - Arreglado: en Plasma, los programas recién instalados no aparecían en
   «Todas las aplicaciones» (sí en el buscador) y los desinstalados seguían

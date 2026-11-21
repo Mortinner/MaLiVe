@@ -328,3 +328,39 @@ def test_old_entries_with_null_argument_still_launch(env):
     app.save()
     assert runner.main(["--app", app.id, "--entry", app.entries[0].id]) == 0
     assert env.calls()[-1]["argv"] == [app.entries[0].exe]
+
+
+def test_menu_rebuild_uses_desktop_language(env, monkeypatch):
+    """Desde el menú o el temporizador MaLiVe puede no tener LANG; kbuildsycoca6
+    debe usar el idioma de Plasma para reconstruir la base de datos que Plasma lee."""
+    from malive import shortcuts
+
+    monkeypatch.delenv("LANG", raising=False)
+    monkeypatch.delenv("LANGUAGE", raising=False)
+    monkeypatch.setattr(shortcuts, "desktop_shell_env",
+                        lambda: {"LANG": "es_ES.UTF-8", "LANGUAGE": "", "XDG_DATA_DIRS": "/usr/share"})
+    monkeypatch.setattr(shortcuts.shutil, "which", lambda c: f"/usr/bin/{c}")
+    seen = []
+
+    class R:
+        returncode = 0
+        stderr = ""
+
+    def fake_run(cmd, **kw):
+        seen.append((cmd[0].rsplit("/", 1)[-1], kw["env"].get("LANG"), kw["env"].get("XDG_DATA_DIRS")))
+        return R()
+
+    monkeypatch.setattr(shortcuts.subprocess, "run", fake_run)
+    shortcuts.refresh_menus()
+    assert ("kbuildsycoca6", "es_ES.UTF-8", "/usr/share") in seen
+
+
+def test_desktop_shell_env_reads_own_process(env, monkeypatch):
+    from malive import shortcuts
+
+    import os
+    me = open(f"/proc/{os.getpid()}/comm").read().strip()
+    found = shortcuts.desktop_shell_env(names=(me,))
+    # /proc/<pid>/environ es el entorno con el que arrancó el proceso
+    assert found and "PATH" in found
+    assert shortcuts.desktop_shell_env(names=("no-existe-este-proceso",)) is None

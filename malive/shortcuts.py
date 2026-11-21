@@ -315,6 +315,53 @@ def rewrite_all() -> int:
     return n
 
 
+# Variables de las que depende QUÉ base de datos de programas (ksycoca)
+# reconstruye kbuildsycoca6: el idioma y las carpetas del sistema. Su nombre es
+# ksycoca6_<idioma>_<hash de XDG_DATA_DIRS>.
+DESKTOP_ENV_VARS = ("LANG", "LANGUAGE", "LC_ALL", "LC_MESSAGES", "XDG_DATA_DIRS",
+                    "XDG_CONFIG_DIRS", "XDG_DATA_HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME")
+
+
+def desktop_shell_env(names=("plasmashell", "gnome-shell")) -> dict[str, str] | None:
+    """Entorno del proceso del escritorio (de este usuario) que está en marcha."""
+    uid = os.getuid()
+    for entry in Path("/proc").iterdir():
+        if not entry.name.isdigit():
+            continue
+        try:
+            if (entry / "comm").read_text().strip() not in names or entry.stat().st_uid != uid:
+                continue
+            raw = (entry / "environ").read_bytes()
+        except OSError:
+            continue
+        env = {}
+        for item in raw.split(b"\0"):
+            key, sep, value = item.partition(b"=")
+            if sep:
+                env[key.decode(errors="replace")] = value.decode(errors="replace")
+        return env
+    return None
+
+
+def _menu_rebuild_env() -> dict[str, str]:
+    """Nuestro entorno, pero con el idioma y las carpetas del escritorio.
+
+    Lanzado desde el menú de Plasma o desde el temporizador de systemd, MaLiVe
+    puede no tener LANG; entonces kbuildsycoca6 reconstruye otra base de datos
+    (ksycoca6_en-POSIX_…) en vez de la que lee Plasma (p. ej. ksycoca6_es_…)
+    y el menú no cambia.
+    """
+    env = dict(os.environ)
+    shell = desktop_shell_env()
+    if shell:
+        for var in DESKTOP_ENV_VARS:
+            if var in shell:
+                env[var] = shell[var]
+            else:
+                env.pop(var, None)
+    return env
+
+
 def refresh_menus() -> None:
     """Avisa al escritorio de que han cambiado los accesos.
 
@@ -323,6 +370,7 @@ def refresh_menus() -> None:
     de systemd).
     """
     apps_dir = paths.applications_dir()
+    env = _menu_rebuild_env()
     done = []
     # --noincremental: con la reconstrucción incremental, Plasma actualiza su
     # base de datos (el buscador encuentra el programa) pero la lista de
@@ -336,7 +384,7 @@ def refresh_menus() -> None:
             continue
         try:
             r = subprocess.run([exe, *cmd[1:]], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
-                               text=True, timeout=60)
+                               text=True, timeout=60, env=env)
             done.append(f"{cmd[0]}: {r.returncode}")
             if r.returncode != 0:
                 log.warning("%s terminó con código %s: %s", cmd[0], r.returncode, r.stderr.strip()[-300:])
@@ -345,7 +393,8 @@ def refresh_menus() -> None:
             log.warning("no se pudo ejecutar %s: %s", cmd[0], e)
         if cmd[0] == "kbuildsycoca6":
             break  # con la de Plasma 6 no hace falta la de Plasma 5
-    log.info("menú refrescado (%s)", ", ".join(done))
+    log.info("menú refrescado (%s; LANG=%s, LANGUAGE=%s, propio LANG=%s)", ", ".join(done),
+             env.get("LANG", "-"), env.get("LANGUAGE", "-"), os.environ.get("LANG", "-"))
 
 
 def register(app: App, candidates: list[Candidate]) -> list[Entry]:
