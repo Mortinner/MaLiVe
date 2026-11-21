@@ -90,6 +90,28 @@ def launch(app: App, exe: Path, args: list[str], workdir: Path | None = None,
     return rc
 
 
+def uninstall(app_id: str) -> int:
+    """Desinstalación desde el menú: confirma y borra la app con su entorno."""
+    app = config.load_app(app_id)
+    if app is None:
+        raise UserError("Este programa ya no está instalado.")
+    if pfx.is_busy(app.prefix_path):
+        raise UserError(f"«{app.name}» está abierto. Ciérralo y vuelve a intentarlo.")
+    names = "\n".join(f"  • {e.name}" for e in app.entries)
+    also = f"\n\nSe quitarán del menú:\n{names}" if len(app.entries) > 1 else ""
+    if not ui.question(
+        f"¿Desinstalar «{app.name}»?{also}\n\n"
+        "Se borrarán el programa y sus datos guardados dentro de él (configuración, "
+        "archivos en «Mis documentos» de Windows…).",
+        title="Desinstalar", yes="Desinstalar", no="Cancelar",
+    ):
+        return 1
+    discard_app(app)
+    log.info("app %s desinstalada", app.id)
+    ui.notify(f"«{app.name}» se ha desinstalado.")
+    return 0
+
+
 def _is_console(exe: Path) -> bool:
     try:
         return pe.parse(exe).subsystem == "console"
@@ -275,6 +297,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--app", help="id de una app instalada (lo usan los .desktop)")
     p.add_argument("--entry", help="id de la entrada de la app")
+    p.add_argument("--uninstall", metavar="APP", help="desinstalar una app (con confirmación)")
     p.add_argument("file", nargs="?", help="fichero a ejecutar")
     p.add_argument("args", nargs=argparse.REMAINDER, help="argumentos para el programa")
     return p
@@ -284,6 +307,8 @@ def main(argv: list[str] | None = None) -> int:
     setup_logging()
     opts = build_parser().parse_args(argv)
     try:
+        if opts.uninstall:
+            return uninstall(opts.uninstall)
         if opts.app:
             if not opts.entry:
                 raise UserError("Falta --entry")

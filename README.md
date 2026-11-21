@@ -4,11 +4,11 @@ Doble clic en un `.exe` o `.msi` desde el gestor de archivos y se ejecuta o se
 instala, como en Windows. Por debajo: **umu-launcher + GE-Proton**, un prefijo
 por app y accesos en el menú de aplicaciones con su icono.
 
-Versión **0.1.2** (primera para probar).
+Versión **0.1.3** (primera para probar).
 
 ## Instalación
 
-1. Descomprime `malive-0.1.2.zip` (clic derecho → Extraer aquí).
+1. Descomprime `malive-0.1.3.zip` (clic derecho → Extraer aquí).
 2. Entra en la carpeta `malive` y haz doble clic en `install.sh` → **Ejecutar**
    (o en una terminal: `./install.sh`).
 

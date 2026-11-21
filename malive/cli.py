@@ -213,6 +213,12 @@ def cmd_setup(a) -> int:
     return 0
 
 
+def cmd_refresh(a) -> int:
+    n = shortcuts.rewrite_all()
+    print(f"Accesos del menú actualizados: {n}")
+    return 0
+
+
 def cmd_doctor(a) -> int:
     ok = True
 
@@ -300,6 +306,8 @@ def build_parser() -> argparse.ArgumentParser:
     s.set_defaults(func=cmd_winetricks)
 
     sub.add_parser("doctor", help="comprobar dependencias e integración").set_defaults(func=cmd_doctor)
+    sub.add_parser("refresh", help="regenerar los accesos del menú de todas las apps"
+                   ).set_defaults(func=cmd_refresh)
     sub.add_parser("setup", help="descargar GE-Proton y el runtime y probar que Proton arranca"
                    ).set_defaults(func=cmd_setup)
     return p

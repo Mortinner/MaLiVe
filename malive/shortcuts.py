@@ -248,6 +248,15 @@ def write_desktop(app: App, entry: Entry) -> Path:
         "Categories=Utility;",
         f"StartupWMClass={_desktop_escape(wmclass)}",
         f"X-MaLiVe-App={app.id}",
+        # Acción del clic derecho en el menú (Plasma, GNOME…). La opción
+        # "Desinstalar y gestionar complementos" de Plasma solo funciona con
+        # paquetes del catálogo AppStream, así que ponemos la nuestra.
+        "Actions=malive-uninstall;",
+        "",
+        "[Desktop Action malive-uninstall]",
+        f"Name={_desktop_escape(f'Desinstalar {app.name}')}",
+        "Icon=edit-delete",
+        f"Exec={_desktop_escape(exec_quote(malive_run_path()))} --uninstall {app.id}",
         "",
     ]
     tmp = path.with_suffix(".tmp")
@@ -255,6 +264,24 @@ def write_desktop(app: App, entry: Entry) -> Path:
     tmp.chmod(0o755)
     os.replace(tmp, path)
     return path
+
+
+def rewrite_all() -> int:
+    """Regenera los .desktop de todas las apps (tras actualizar MaLiVe)."""
+    n = 0
+    for app in config.all_apps():
+        changed = False
+        for entry in app.entries:
+            if entry.desktop and not Path(entry.desktop).exists():
+                continue  # el usuario lo quitó a mano: respetarlo
+            entry.desktop = str(write_desktop(app, entry))
+            changed = True
+            n += 1
+        if changed:
+            app.save()
+    if n:
+        refresh_menus()
+    return n
 
 
 def refresh_menus() -> None:

@@ -495,7 +495,7 @@ step_copy() {
   echo "MaLiVe copiado en $LIB"
 }
 
-step_integrate() { "$BIN/malive" integrate; }
+step_integrate() { "$BIN/malive" integrate && "$BIN/malive" refresh; }
 step_setup()     { "$BIN/malive" setup; }
 
 STEP_LABELS=()

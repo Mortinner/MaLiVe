@@ -224,3 +224,42 @@ def test_console_app_gets_a_window(env):
     exe = copy_fixture(env, "consola.exe")
     assert runner.main([str(exe), "-v"]) == 0
     assert env.calls()[-1]["argv"] == ["start", "/wait", "/unix", str(exe), "-v"]
+
+
+def test_uninstall_from_menu_action(env, monkeypatch):
+    from malive import ui
+
+    setup = copy_fixture(env, "TestApp-2.1.0-x64-setup.exe")
+    runner.main([str(setup)])
+    app = config.all_apps()[0]
+    desktop = Path(app.entries[0].desktop)
+    text = desktop.read_text()
+    assert "Actions=malive-uninstall;" in text
+    assert "[Desktop Action malive-uninstall]" in text
+    assert "Name=Desinstalar Test App" in text
+    assert f"Exec=/opt/test/malive-run --uninstall {app.id}" in text
+
+    # el usuario dice que no
+    monkeypatch.setattr(ui, "question", lambda *a, **k: False)
+    assert runner.main(["--uninstall", app.id]) == 1
+    assert desktop.exists() and app.prefix_path.exists()
+
+    # y luego que sí
+    monkeypatch.setattr(ui, "question", lambda *a, **k: True)
+    assert runner.main(["--uninstall", app.id]) == 0
+    assert not desktop.exists() and not app.prefix_path.exists() and config.all_apps() == []
+    assert not list(paths.icons_dir().glob(f"{app.id}-*"))
+
+    # ya desinstalada: aviso, sin traza
+    assert runner.main(["--uninstall", app.id]) == 1
+
+
+def test_refresh_rewrites_old_desktop_files(env):
+    from malive import cli
+
+    setup = copy_fixture(env, "TestApp-2.1.0-x64-setup.exe")
+    runner.main([str(setup)])
+    desktop = Path(config.all_apps()[0].entries[0].desktop)
+    desktop.write_text("[Desktop Entry]\nName=viejo\n")  # como los de la 0.1.2
+    assert cli.main(["refresh"]) == 0
+    assert "Actions=malive-uninstall;" in desktop.read_text()

@@ -82,12 +82,15 @@ def error(message: str, title: str = APP_TITLE) -> None:
         notify(message, title, icon="dialog-error")
 
 
-def question(message: str, title: str = APP_TITLE, default: bool = False) -> bool:
+def question(message: str, title: str = APP_TITLE, default: bool = False,
+             yes: str | None = None, no: str | None = None) -> bool:
     b = backend()
     if b == "kdialog":
-        return _run(["kdialog", "--title", title, "--yesno", message]).returncode == 0
+        labels = (["--yes-label", yes] if yes else []) + (["--no-label", no] if no else [])
+        return _run(["kdialog", "--title", title, *labels, "--warningyesno" if yes else "--yesno", message]).returncode == 0
     if b == "zenity":
-        return _run(["zenity", "--question", "--title", title, "--width=420", "--text", message]).returncode == 0
+        labels = ([f"--ok-label={yes}"] if yes else []) + ([f"--cancel-label={no}"] if no else [])
+        return _run(["zenity", "--question", "--title", title, "--width=420", *labels, "--text", message]).returncode == 0
     if sys.stdin.isatty() and os.environ.get("MALIVE_NO_GUI") != "1":
         answer = input(f"{message} [{'S/n' if default else 's/N'}] ").strip().lower()
         return default if not answer else answer in ("s", "si", "sí", "y", "yes")
