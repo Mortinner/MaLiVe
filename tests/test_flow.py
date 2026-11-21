@@ -293,3 +293,36 @@ def test_refresh_menus_waits_for_kbuildsycoca(env, monkeypatch):
     monkeypatch.setattr(shortcuts.subprocess, "run", fake_run)
     shortcuts.refresh_menus()
     assert calls == ["update-desktop-database", "kbuildsycoca6"]
+
+
+def test_shortcut_appears_while_launched_app_is_still_open(env, monkeypatch):
+    """Instalador con «Ejecutar X al terminar» marcado (lo típico): el acceso
+    debe aparecer en el menú sin esperar a que el usuario cierre el programa."""
+    import threading
+    import time
+
+    monkeypatch.setenv("FAKE_APP_RUNS", "12")
+    setup = copy_fixture(env, "TestApp-2.1.0-x64-setup.exe")
+    result = {}
+    t = threading.Thread(target=lambda: result.setdefault("rc", runner.main([str(setup)])))
+    t.start()
+    desktop = paths.applications_dir() / "malive-test-app-test-app.desktop"
+    deadline = time.monotonic() + 9
+    while not desktop.exists() and time.monotonic() < deadline:
+        time.sleep(0.2)
+    assert desktop.exists(), "el acceso no apareció mientras el programa seguía abierto"
+    assert t.is_alive()  # el «programa» sigue abierto
+    t.join(30)
+    assert result["rc"] == 0
+    apps = config.all_apps()
+    assert len(apps) == 1 and [e.name for e in apps[0].entries] == ["Test App"]  # sin duplicados
+
+
+def test_old_entries_with_null_argument_still_launch(env):
+    setup = copy_fixture(env, "TestApp-2.1.0-x64-setup.exe")
+    runner.main([str(setup)])
+    app = config.all_apps()[0]
+    app.entries[0].args = ["\x00"]  # como quedó guardado en la 0.1.4
+    app.save()
+    assert runner.main(["--app", app.id, "--entry", app.entries[0].id]) == 0
+    assert env.calls()[-1]["argv"] == [app.entries[0].exe]

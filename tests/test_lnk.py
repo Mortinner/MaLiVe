@@ -63,3 +63,9 @@ def test_not_lnk():
     except lnk.NotLnk:
         return
     raise AssertionError("debería fallar")
+
+
+def test_null_char_in_arguments_is_dropped():
+    # El instalador de Notepad++ guarda los argumentos vacíos como "\0" (cuenta 1)
+    sc = lnk.parse_bytes(build_lnk(r"C:\Program Files\Notepad++\notepad++.exe", args="\0"))
+    assert sc.arguments == ""

@@ -69,6 +69,34 @@ def take_snapshot(prefix: Path) -> Snapshot:
     return snap
 
 
+def menu_dirs(prefix: Path) -> list[Path]:
+    """Carpetas donde los instaladores dejan accesos (menú Inicio y escritorio)."""
+    c = pfx.drive_c(prefix)
+    dirs = [c / "ProgramData/Microsoft/Windows/Start Menu"]
+    users = c / "users"
+    if users.is_dir():
+        for u in users.iterdir():
+            if u.is_dir() and not u.is_symlink():
+                dirs += [u / "Desktop", u / "AppData/Roaming/Microsoft/Windows/Start Menu"]
+    return [d for d in dirs if d.is_dir()]
+
+
+def take_lnk_snapshot(prefix: Path) -> Snapshot:
+    """Instantánea ligera (solo .lnk del menú y el escritorio) para vigilar
+    mientras el instalador sigue en marcha."""
+    snap = Snapshot()
+    for d in menu_dirs(prefix):
+        for dirpath, _dirs, files in os.walk(d):
+            for name in files:
+                if name.lower().endswith(".lnk"):
+                    full = os.path.join(dirpath, name)
+                    try:
+                        snap.lnks[full] = os.lstat(full).st_mtime
+                    except OSError:
+                        pass
+    return snap
+
+
 @dataclass
 class Candidate:
     name: str
@@ -83,7 +111,7 @@ class Candidate:
 def _split_args(arguments: str) -> list[str]:
     """Separa argumentos de Windows (comillas dobles), sin interpretar barras."""
     out, cur, quoted = [], "", False
-    for ch in arguments:
+    for ch in arguments.replace("\0", ""):
         if ch == '"':
             quoted = not quoted
         elif ch.isspace() and not quoted:
@@ -295,17 +323,24 @@ def refresh_menus() -> None:
     de systemd) y el menú se queda con entradas borradas.
     """
     apps_dir = paths.applications_dir()
+    done = []
     for cmd in (["update-desktop-database", str(apps_dir)], ["kbuildsycoca6"], ["kbuildsycoca5"]):
-        if shutil.which(cmd[0]):
-            try:
-                r = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
-                                   text=True, timeout=60)
-                if r.returncode != 0:
-                    log.warning("%s terminó con código %s: %s", cmd[0], r.returncode, r.stderr.strip()[-300:])
-            except (OSError, subprocess.TimeoutExpired) as e:
-                log.warning("no se pudo ejecutar %s: %s", cmd[0], e)
-            if cmd[0] == "kbuildsycoca6":
-                break  # con la de Plasma 6 no hace falta la de Plasma 5
+        exe = shutil.which(cmd[0])
+        if not exe:
+            done.append(f"{cmd[0]}: no está")
+            continue
+        try:
+            r = subprocess.run([exe, *cmd[1:]], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                               text=True, timeout=60)
+            done.append(f"{cmd[0]}: {r.returncode}")
+            if r.returncode != 0:
+                log.warning("%s terminó con código %s: %s", cmd[0], r.returncode, r.stderr.strip()[-300:])
+        except (OSError, subprocess.TimeoutExpired) as e:
+            done.append(f"{cmd[0]}: {e}")
+            log.warning("no se pudo ejecutar %s: %s", cmd[0], e)
+        if cmd[0] == "kbuildsycoca6":
+            break  # con la de Plasma 6 no hace falta la de Plasma 5
+    log.info("menú refrescado (%s)", ", ".join(done))
 
 
 def register(app: App, candidates: list[Candidate]) -> list[Entry]:

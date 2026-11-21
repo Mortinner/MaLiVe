@@ -163,7 +163,9 @@ def parse_bytes(data: bytes) -> Shortcut:
         else:
             s = data[pos : pos + count].decode("cp1252", errors="replace")
             pos += count
-        return s
+        # Algunos programas (p. ej. el instalador de Notepad++) incluyen el
+        # carácter nulo final en la cuenta: un argumento vacío llega como "\0"
+        return s.split("\0", 1)[0]
 
     if flags & HAS_NAME:
         sc.description = read_string()

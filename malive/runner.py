@@ -72,6 +72,10 @@ def _ensure_ready(app: App, cfg: dict) -> None:
 
 def launch(app: App, exe: Path, args: list[str], workdir: Path | None = None,
            source_dir: Path | None = None) -> int:
+    # Un "\0" en un argumento hace fallar a subprocess ("embedded null byte");
+    # las apps instaladas con la 0.1.4 o anteriores pueden tenerlo guardado.
+    args = [a.replace("\0", "") for a in args]
+    args = [a for a in args if a]
     cfg = config.load_global()
     _ensure_ready(app, cfg)
     pfx.apply_drives(app, cfg, source_dir)
@@ -169,22 +173,36 @@ def install(det: detect.Detection, args: list[str], app: App | None = None) -> i
         log.info("reutilizando el entorno de %s para %s", app.id, det.path)
 
     pfx.apply_drives(app, cfg, det.path.parent)
-    before = shortcuts.take_snapshot(app.prefix_path)
+    prefix = app.prefix_path
+    before = shortcuts.take_snapshot(prefix)
     argv = _installer_argv(app, det, args)
     log.info("instalando %s (%s) en %s", det.path, det.subtype, app.id)
-    rc, _ = pfx.run_umu(app, cfg, argv, cwd=det.path.parent, install_path=det.path.parent)
 
-    # 1ª pasada: en cuanto termina el instalador
-    created = shortcuts.register(app, shortcuts.new_from_lnks(app.prefix_path, before, shortcuts.take_snapshot(app.prefix_path)))
-    # 2ª pasada: cuando no queda nada vivo (bootstrappers que se relanzan, o la
-    # app que el instalador abrió al terminar)
-    if pfx.is_busy(app.prefix_path):
-        pfx.wait_idle(app.prefix_path)
-    after = shortcuts.take_snapshot(app.prefix_path)
-    created += shortcuts.register(app, shortcuts.new_from_lnks(app.prefix_path, before, after))
+    created: list[config.Entry] = []
+
+    def scan(full: bool = False) -> None:
+        """Crea los accesos que hayan aparecido y avisa de los nuevos."""
+        snap = shortcuts.take_snapshot(prefix) if full else shortcuts.take_lnk_snapshot(prefix)
+        new = shortcuts.register(app, shortcuts.new_from_lnks(prefix, before, snap))
+        if new:
+            created.extend(new)
+            log.info("accesos creados: %s", [e.name for e in new])
+            ui.notify(f"«{name}» instalado. Ya está en el menú de aplicaciones: "
+                      + ", ".join(e.name for e in new))
+
+    # Se vigila el menú Inicio mientras el instalador sigue en marcha: muchos
+    # abren el programa al terminar («Ejecutar X») y el contenedor no acaba
+    # hasta que el usuario lo cierra; el acceso debe aparecer antes.
+    rc, _ = pfx.run_umu(app, cfg, argv, cwd=det.path.parent, install_path=det.path.parent, on_tick=scan)
+    scan(full=True)
+    # Cuando no queda nada vivo (bootstrappers que se relanzan…), última pasada
+    if pfx.is_busy(prefix):
+        pfx.wait_idle(prefix, on_tick=scan)
+    after = shortcuts.take_snapshot(prefix)
+    scan(full=True)
 
     if not created:
-        exes = shortcuts.new_exes(app.prefix_path, before, after)
+        exes = shortcuts.new_exes(prefix, before, after)
         nothing_new = not (after.exes - before.exes) and not (set(after.lnks) - set(before.lnks))
         if nothing_new:
             if is_new:
@@ -194,13 +212,13 @@ def install(det: detect.Detection, args: list[str], app: App | None = None) -> i
                 ui.notify(f"«{name}»: el instalador no añadió programas nuevos.")
             log.info("instalación sin cambios (rc=%s)", rc)
             return rc
-        chosen = _choose_exes(name, exes)
-        created += shortcuts.register(app, chosen)
+        chosen = shortcuts.register(app, _choose_exes(name, exes))
+        if chosen:
+            created.extend(chosen)
+            ui.notify(f"«{name}» instalado. Ya está en el menú de aplicaciones: "
+                      + ", ".join(e.name for e in chosen))
 
-    if created:
-        names = ", ".join(e.name for e in created)
-        ui.notify(f"«{name}» instalado. Ya está en el menú de aplicaciones: {names}")
-    elif not app.entries:
+    if not created and not app.entries:
         ui.info(
             f"«{name}» se ha instalado, pero no se encontró su programa principal.\n"
             f"Puedes crear el acceso con:\n  malive shortcuts {app.id} --all"

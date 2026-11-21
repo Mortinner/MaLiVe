@@ -1,5 +1,15 @@
 # Cambios
 
+## 0.1.6
+- Los programas que se abren solos al terminar la instalación («Ejecutar
+  Notepad++») ya no retrasan su acceso: MaLiVe vigila el menú Inicio de
+  Windows mientras dura la instalación y crea cada acceso en cuanto aparece.
+- Arreglado: Notepad++ (y otros) no se abría desde el menú por un carácter
+  nulo en los argumentos de su acceso directo («embedded null byte»). También
+  se corrige en las apps ya instaladas.
+- El registro anota cómo se ha refrescado el menú del escritorio, para
+  diagnosticar los casos en que Plasma no muestra un programa nuevo.
+
 ## 0.1.5
 - **Actualizaciones automáticas.** MaLiVe busca cada día una versión nueva en
   GitHub, la descarga, comprueba su SHA-256, la prueba y la instala sola; si

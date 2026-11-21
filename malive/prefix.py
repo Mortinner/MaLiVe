@@ -5,6 +5,7 @@ detección de procesos vivos y lanzamiento con umu-run.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import shutil
 import subprocess
@@ -13,6 +14,8 @@ from pathlib import Path
 
 from . import config, paths, proton, ui
 from .config import App
+
+log = logging.getLogger("malive")
 
 EMPTY_DIR = "malive-empty"  # destino de Z: cuando se aísla
 STATE_FILE = "malive-drives.json"
@@ -248,7 +251,8 @@ def is_busy(prefix: Path) -> bool:
     return bool(running_pids(prefix))
 
 
-def wait_idle(prefix: Path, poll: float = 2.0, settle: int = 2, timeout: float | None = None) -> bool:
+def wait_idle(prefix: Path, poll: float = 2.0, settle: int = 2, timeout: float | None = None,
+              on_tick=None) -> bool:
     """Espera a que no quede ningún proceso del prefijo (incluido wineserver).
     `settle` comprobaciones seguidas sin procesos para evitar falsos positivos
     entre un proceso que termina y otro que arranca."""
@@ -263,6 +267,8 @@ def wait_idle(prefix: Path, poll: float = 2.0, settle: int = 2, timeout: float |
                 return True
         if timeout is not None and time.monotonic() - start > timeout:
             return False
+        if on_tick:
+            _safe_tick(on_tick)
         time.sleep(poll)
 
 
@@ -309,13 +315,22 @@ def log_path(app: App) -> Path:
     return d / f"{app.id}.log"
 
 
+def _safe_tick(on_tick) -> None:
+    try:
+        on_tick()
+    except Exception:  # noqa: BLE001 - un fallo al vigilar no debe parar la instalación
+        log.exception("error en la vigilancia periódica")
+
+
 def run_umu(app: App, cfg: dict, argv: list[str], cwd: Path | None = None,
             verb: str | None = None, log_mode: str = "a",
-            install_path: Path | None = None) -> tuple[int, float]:
+            install_path: Path | None = None,
+            on_tick=None, tick: float = 3.0) -> tuple[int, float]:
     """Ejecuta umu-run y espera a que termine. Devuelve (código, segundos).
 
     install_path: carpeta que el contenedor debe ver aunque argv[0] no sea un
     fichero (p. ej. "msiexec"); umu la monta como STEAM_COMPAT_INSTALL_PATH.
+    on_tick: función que se llama cada `tick` segundos mientras se espera.
     """
     exe = umu_binary()
     if verb is None:
@@ -335,7 +350,12 @@ def run_umu(app: App, cfg: dict, argv: list[str], cwd: Path | None = None,
             stdout=lf, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
             start_new_session=True,
         )
-        rc = proc.wait()
+        while True:
+            try:
+                rc = proc.wait(timeout=tick if on_tick else None)
+                break
+            except subprocess.TimeoutExpired:
+                _safe_tick(on_tick)
         lf.write(f"===== exit {rc}\n")
     return rc, time.monotonic() - start
 

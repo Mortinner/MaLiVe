@@ -76,6 +76,9 @@ if b"NullsoftInst" in data:
     # duplicado en el escritorio: no debe crear un segundo .desktop
     pylnk3.for_file(target, str(c / "users/steamuser/Desktop/Test App.lnk"))
     linger()
+    # «Ejecutar Test App» al terminar: el contenedor no acaba hasta cerrarla
+    import time
+    time.sleep(float(os.environ.get("FAKE_APP_RUNS", "0")))
     sys.exit(0)
 
 sys.exit(int(os.environ.get("FAKE_RC", "0")))
