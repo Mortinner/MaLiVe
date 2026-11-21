@@ -144,9 +144,10 @@ malive integrate | unintegrate
    sección en `CHANGELOG.md` (`## X.Y.Z`).
 2. Si la versión necesita paquetes nuevos del sistema, añádelos a
    `release.json` **y** a `install.sh` (un test comprueba que coinciden).
-3. `git commit`, `git tag vX.Y.Z`, `git push --tags`.
+3. `git commit` y `git push` a `main`.
 
-GitHub Actions pasa los tests, crea `malive-X.Y.Z.zip` con su `.sha256` y
+Cuando cambia `release.json` en `main`, GitHub Actions crea la etiqueta
+`vX.Y.Z`, pasa los tests, crea `malive-X.Y.Z.zip` con su `.sha256` y
 publica la release con las notas del CHANGELOG. Los equipos con MaLiVe se
 actualizan solos en menos de un día.
 
