@@ -10,6 +10,7 @@ import traceback
 from pathlib import Path
 
 from . import config, detect, paths, pe, prefix as pfx, proton, shortcuts, ui
+from .i18n import T
 from .config import App
 
 log = logging.getLogger("malive")
@@ -87,10 +88,8 @@ def launch(app: App, exe: Path, args: list[str], workdir: Path | None = None,
     log.info("lanzando %s en %s: %s", app.id, app.proton, argv)
     rc, secs = pfx.run_umu(app, cfg, argv, cwd=workdir or exe.parent, install_path=exe.parent)
     if rc != 0 and secs < QUICK_FAIL_SECONDS:
-        ui.error(
-            f"«{app.name}» no ha podido arrancar (código {rc}).\n\n"
-            f"Registro: {pfx.log_path(app)}"
-        )
+        ui.error(T(f"«{app.name}» no ha podido arrancar (código {rc}).\n\nRegistro: {pfx.log_path(app)}",
+                   f"«{app.name}» could not start (code {rc}).\n\nLog: {pfx.log_path(app)}"))
     return rc
 
 
@@ -98,21 +97,26 @@ def uninstall(app_id: str) -> int:
     """Desinstalación desde el menú: confirma y borra la app con su entorno."""
     app = config.load_app(app_id)
     if app is None:
-        raise UserError("Este programa ya no está instalado.")
+        raise UserError(T("Este programa ya no está instalado.", "This program is no longer installed."))
     if pfx.is_busy(app.prefix_path):
-        raise UserError(f"«{app.name}» está abierto. Ciérralo y vuelve a intentarlo.")
+        raise UserError(T(f"«{app.name}» está abierto. Ciérralo y vuelve a intentarlo.",
+                          f"«{app.name}» is open. Close it and try again."))
     names = "\n".join(f"  • {e.name}" for e in app.entries)
-    also = f"\n\nSe quitarán del menú:\n{names}" if len(app.entries) > 1 else ""
+    also = (T(f"\n\nSe quitarán del menú:\n{names}", f"\n\nThese menu entries will be removed:\n{names}")
+            if len(app.entries) > 1 else "")
     if not ui.question(
-        f"¿Desinstalar «{app.name}»?{also}\n\n"
-        "Se borrarán el programa y sus datos guardados dentro de él (configuración, "
-        "archivos en «Mis documentos» de Windows…).",
-        title="Desinstalar", yes="Desinstalar", no="Cancelar",
+        T(f"¿Desinstalar «{app.name}»?{also}\n\n"
+          "Se borrarán el programa y sus datos guardados dentro de él (configuración, "
+          "archivos en «Mis documentos» de Windows…).",
+          f"Uninstall «{app.name}»?{also}\n\n"
+          "The program and the data saved inside it (settings, files in the Windows "
+          "«My Documents» folder…) will be deleted."),
+        title=T("Desinstalar", "Uninstall"), yes=T("Desinstalar", "Uninstall"), no=T("Cancelar", "Cancel"),
     ):
         return 1
     discard_app(app)
     log.info("app %s desinstalada", app.id)
-    ui.notify(f"«{app.name}» se ha desinstalado.")
+    ui.notify(T(f"«{app.name}» se ha desinstalado.", f"«{app.name}» has been uninstalled."))
     return 0
 
 
@@ -126,16 +130,18 @@ def _is_console(exe: Path) -> bool:
 def run_entry(app_id: str, entry_id: str) -> int:
     app = config.load_app(app_id)
     if app is None:
-        raise UserError(f"No existe la app «{app_id}» en MaLiVe. Puede que se haya eliminado.")
+        raise UserError(T(f"No existe la app «{app_id}» en MaLiVe. Puede que se haya eliminado.",
+                          f"There is no app «{app_id}» in MaLiVe. It may have been removed."))
     entry = app.entry(entry_id)
     if entry is None:
-        raise UserError(f"«{app.name}» no tiene la entrada «{entry_id}».")
+        raise UserError(T(f"«{app.name}» no tiene la entrada «{entry_id}».",
+                          f"«{app.name}» has no entry «{entry_id}»."))
     exe = Path(entry.exe)
     if not exe.is_file():
-        if ui.question(
-            f"El programa «{entry.name}» ya no existe dentro de su entorno:\n{exe}\n\n"
-            "¿Quitar su acceso del menú?"
-        ):
+        if ui.question(T(
+            f"El programa «{entry.name}» ya no existe dentro de su entorno:\n{exe}\n\n¿Quitar su acceso del menú?",
+            f"The program «{entry.name}» no longer exists in its environment:\n{exe}\n\nRemove it from the menu?",
+        )):
             if entry.desktop:
                 Path(entry.desktop).unlink(missing_ok=True)
             app.entries = [e for e in app.entries if e.id != entry.id]
@@ -155,7 +161,8 @@ def _installer_argv(app: App, det: detect.Detection, args: list[str]) -> list[st
         return [str(det.path), *args]
     winpath = pfx.unix_to_windows(app.prefix_path, det.path)
     if winpath is None:
-        raise UserError(f"No se pudo acceder a {det.path} desde el entorno de Windows.")
+        raise UserError(T(f"No se pudo acceder a {det.path} desde el entorno de Windows.",
+                          f"{det.path} cannot be reached from the Windows environment."))
     # Accesos no "anunciados": así los .lnk apuntan al .exe real
     return ["msiexec", "/i", winpath, "DISABLEADVTSHORTCUTS=1", *args]
 
@@ -187,8 +194,7 @@ def install(det: detect.Detection, args: list[str], app: App | None = None) -> i
         if new:
             created.extend(new)
             log.info("accesos creados: %s", [e.name for e in new])
-            ui.notify(f"«{name}» instalado. Ya está en el menú de aplicaciones: "
-                      + ", ".join(e.name for e in new))
+            ui.notify(_installed_msg(name, new))
 
     # Se vigila el menú Inicio mientras el instalador sigue en marcha: muchos
     # abren el programa al terminar («Ejecutar X») y el contenedor no acaba
@@ -207,23 +213,32 @@ def install(det: detect.Detection, args: list[str], app: App | None = None) -> i
         if nothing_new:
             if is_new:
                 discard_app(app)
-                ui.notify(f"La instalación de «{name}» se canceló o no instaló nada.")
+                ui.notify(T(f"La instalación de «{name}» se canceló o no instaló nada.",
+                            f"The installation of «{name}» was cancelled or installed nothing."))
             else:
-                ui.notify(f"«{name}»: el instalador no añadió programas nuevos.")
+                ui.notify(T(f"«{name}»: el instalador no añadió programas nuevos.",
+                            f"«{name}»: the installer added no new programs."))
             log.info("instalación sin cambios (rc=%s)", rc)
             return rc
         chosen = shortcuts.register(app, _choose_exes(name, exes))
         if chosen:
             created.extend(chosen)
-            ui.notify(f"«{name}» instalado. Ya está en el menú de aplicaciones: "
-                      + ", ".join(e.name for e in chosen))
+            ui.notify(_installed_msg(name, chosen))
 
     if not created and not app.entries:
-        ui.info(
+        ui.info(T(
             f"«{name}» se ha instalado, pero no se encontró su programa principal.\n"
-            f"Puedes crear el acceso con:\n  malive shortcuts {app.id} --all"
-        )
+            f"Puedes crear el acceso con:\n  malive shortcuts {app.id} --all",
+            f"«{name}» has been installed, but its main program was not found.\n"
+            f"You can create the menu entry with:\n  malive shortcuts {app.id} --all",
+        ))
     return 0
+
+
+def _installed_msg(name: str, entries) -> str:
+    names = ", ".join(e.name for e in entries)
+    return T(f"«{name}» instalado. Ya está en el menú de aplicaciones: {names}",
+             f"«{name}» installed. It is now in your app menu: {names}")
 
 
 def _choose_exes(name: str, exes: list[shortcuts.Candidate]) -> list[shortcuts.Candidate]:
@@ -232,9 +247,8 @@ def _choose_exes(name: str, exes: list[shortcuts.Candidate]) -> list[shortcuts.C
     if len(exes) == 1:
         return exes
     items = [(str(i), f"{c.name}  ({c.exe.parent.name})", i == 0) for i, c in enumerate(exes[:30])]
-    picked = ui.checklist(
-        f"«{name}» no creó accesos directos. ¿Qué programas quieres en el menú?", items
-    )
+    picked = ui.checklist(T(f"«{name}» no creó accesos directos. ¿Qué programas quieres en el menú?",
+                            f"«{name}» created no shortcuts. Which programs do you want in the menu?"), items)
     if picked is None:
         return exes[:1]  # sin GUI o cancelado: el más grande
     return [exes[int(i)] for i in picked]
@@ -247,7 +261,7 @@ def _choose_exes(name: str, exes: list[shortcuts.Candidate]) -> list[shortcuts.C
 def run_file(path: Path, args: list[str]) -> int:
     path = path.expanduser()
     if not path.is_file():
-        raise UserError(f"No existe el fichero:\n{path}")
+        raise UserError(T(f"No existe el fichero:\n{path}", f"File not found:\n{path}"))
     path = path.resolve()
     det = detect.detect(path)
     log.info("detectado %s: kind=%s subtype=%s name=%r", path, det.kind, det.subtype, det.name)
@@ -256,34 +270,38 @@ def run_file(path: Path, args: list[str]) -> int:
     if root is not None:
         app = config.find_by_prefix(root)
         if app is None:
-            raise UserError(
-                "Este programa está dentro de un entorno de Wine que MaLiVe no gestiona:\n"
-                f"{root}\n\nÁbrelo con el programa que creó ese entorno (Lutris, Bottles, Steam…)."
-            )
+            raise UserError(T(
+                f"Este programa está dentro de un entorno de Wine que MaLiVe no gestiona:\n{root}\n\n"
+                "Ábrelo con el programa que creó ese entorno (Lutris, Bottles, Steam…).",
+                f"This program is inside a Wine environment that MaLiVe does not manage:\n{root}\n\n"
+                "Open it with the program that created that environment (Lutris, Bottles, Steam…).",
+            ))
         if det.kind == "lnk":
             return _run_lnk_in_app(app, det)
         if det.is_installer:
             return install(det, args, app)
         if det.kind == "app":
             return launch(app, path, args)
-        raise UserError(f"No se puede ejecutar {path.name}: {det.reason}")
+        raise UserError(T(f"No se puede ejecutar {path.name}: {det.reason}",
+                          f"{path.name} cannot be run: {det.reason}"))
 
     if det.kind == "lnk":
         target = det.shortcut.target if det.shortcut else None
-        raise UserError(
-            "Este acceso directo de Windows no pertenece a ningún programa instalado con MaLiVe"
-            + (f":\n{target}" if target else ".")
-        )
+        raise UserError(T(
+            "Este acceso directo de Windows no pertenece a ningún programa instalado con MaLiVe",
+            "This Windows shortcut does not belong to any program installed with MaLiVe",
+        ) + (f":\n{target}" if target else "."))
     if det.is_installer:
         return install(det, args)
     if det.kind == "app":
         return run_portable(det, args)
     if det.kind == "dos":
-        raise UserError(
-            f"«{path.name}» es un programa de MS-DOS o de Windows de 16 bits.\n"
-            "MaLiVe no los soporta; prueba con DOSBox."
-        )
-    raise UserError(f"No se puede ejecutar «{path.name}»: {det.reason}")
+        raise UserError(T(
+            f"«{path.name}» es un programa de MS-DOS o de Windows de 16 bits.\nMaLiVe no los soporta; prueba con DOSBox.",
+            f"«{path.name}» is an MS-DOS or 16-bit Windows program.\nMaLiVe does not support them; try DOSBox.",
+        ))
+    raise UserError(T(f"No se puede ejecutar «{path.name}»: {det.reason}",
+                      f"«{path.name}» cannot be run: {det.reason}"))
 
 
 def _run_lnk_in_app(app: App, det: detect.Detection) -> int:
@@ -294,7 +312,8 @@ def _run_lnk_in_app(app: App, det: detect.Detection) -> int:
         if exe and exe.is_file():
             cand = shortcuts.Candidate(name=det.path.stem, exe=exe, args=shortcuts._split_args(sc.arguments))
     if cand is None:
-        raise UserError(f"No se pudo resolver el destino de «{det.path.name}».")
+        raise UserError(T(f"No se pudo resolver el destino de «{det.path.name}».",
+                          f"The target of «{det.path.name}» could not be resolved."))
     return launch(app, cand.exe, cand.args, cand.workdir)
 
 
@@ -311,13 +330,16 @@ def run_portable(det: detect.Detection, args: list[str]) -> int:
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="malive-run",
-        description="Ejecuta o instala un programa de Windows (.exe, .msi, .lnk).",
+        description=T("Ejecuta o instala un programa de Windows (.exe, .msi, .lnk).",
+                      "Runs or installs a Windows program (.exe, .msi, .lnk)."),
     )
-    p.add_argument("--app", help="id de una app instalada (lo usan los .desktop)")
-    p.add_argument("--entry", help="id de la entrada de la app")
-    p.add_argument("--uninstall", metavar="APP", help="desinstalar una app (con confirmación)")
-    p.add_argument("file", nargs="?", help="fichero a ejecutar")
-    p.add_argument("args", nargs=argparse.REMAINDER, help="argumentos para el programa")
+    p.add_argument("--app", help=T("id de una app instalada (lo usan los .desktop)",
+                                   "id of an installed app (used by the .desktop files)"))
+    p.add_argument("--entry", help=T("id de la entrada de la app", "id of the app's entry"))
+    p.add_argument("--uninstall", metavar="APP", help=T("desinstalar una app (con confirmación)",
+                                                        "uninstall an app (asks first)"))
+    p.add_argument("file", nargs="?", help=T("fichero a ejecutar", "file to run"))
+    p.add_argument("args", nargs=argparse.REMAINDER, help=T("argumentos para el programa", "arguments for the program"))
     return p
 
 
@@ -329,7 +351,7 @@ def main(argv: list[str] | None = None) -> int:
             return uninstall(opts.uninstall)
         if opts.app:
             if not opts.entry:
-                raise UserError("Falta --entry")
+                raise UserError(T("Falta --entry", "--entry is missing"))
             return run_entry(opts.app, opts.entry)
         if not opts.file:
             build_parser().print_help()
@@ -344,7 +366,8 @@ def main(argv: list[str] | None = None) -> int:
     except Exception:  # noqa: BLE001
         tb = traceback.format_exc()
         log.error("error inesperado\n%s", tb)
-        ui.error(f"Error inesperado en MaLiVe.\nDetalles en: {paths.main_log()}\n\n{tb.splitlines()[-1]}")
+        ui.error(T(f"Error inesperado en MaLiVe.\nDetalles en: {paths.main_log()}\n\n{tb.splitlines()[-1]}",
+                   f"Unexpected error in MaLiVe.\nDetails in: {paths.main_log()}\n\n{tb.splitlines()[-1]}"))
         return 1
 
 

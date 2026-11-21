@@ -18,6 +18,11 @@ from contextlib import contextmanager
 APP_TITLE = "MaLiVe"
 
 
+def _t(es: str, en: str) -> str:
+    from .i18n import T
+    return T(es, en)
+
+
 def _no_gui() -> bool:
     return os.environ.get("MALIVE_NO_GUI") == "1" or not (
         os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")
@@ -118,7 +123,9 @@ def question(message: str, title: str = APP_TITLE, default: bool = False,
         labels = ([f"--ok-label={yes}"] if yes else []) + ([f"--cancel-label={no}"] if no else [])
         return _run(["zenity", "--question", "--title", title, "--width=420", *labels, "--text", message]).returncode == 0
     if sys.stdin.isatty() and os.environ.get("MALIVE_NO_GUI") != "1":
-        answer = input(f"{message} [{'S/n' if default else 's/N'}] ").strip().lower()
+        from .i18n import T
+        hint = T("S/n", "Y/n") if default else T("s/N", "y/N")
+        answer = input(f"{message} [{hint}] ").strip().lower()
         return default if not answer else answer in ("s", "si", "sí", "y", "yes")
     return default
 
@@ -135,7 +142,7 @@ def checklist(message: str, items: list[tuple[str, str, bool]], title: str = APP
     if b == "zenity":
         cmd = ["zenity", "--list", "--checklist", "--title", title, "--text", message,
                "--width=560", "--height=380", "--column", "", "--column", "id",
-               "--column", "Programa", "--hide-column=2", "--print-column=2", "--separator=\n"]
+               "--column", _t("Programa", "Program"), "--hide-column=2", "--print-column=2", "--separator=\n"]
         for ident, label, on in items:
             cmd += ["TRUE" if on else "FALSE", ident, label]
         r = _run(cmd)

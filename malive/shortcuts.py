@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import config, lnk, paths, prefix as pfx
+from .session import desktop_shell_env
 from .config import App, Entry
 
 SKIP_DIRS = {"temp", "tmp", "cache", "inetcache", "crashdumps"}
@@ -271,7 +272,8 @@ def write_desktop(app: App, entry: Entry) -> Path:
         "[Desktop Entry]",
         "Type=Application",
         f"Name={_desktop_escape(entry.name)}",
-        f"Comment={_desktop_escape(f'{app.name} (Windows, vía MaLiVe)')}",
+        f"Comment={_desktop_escape(f'{app.name} (Windows, via MaLiVe)')}",
+        f"Comment[es]={_desktop_escape(f'{app.name} (Windows, vía MaLiVe)')}",
         # El valor de Exec lleva su propio nivel de escape (\\ -> \) además de las comillas
         f"Exec={_desktop_escape(exec_quote(malive_run_path()))} --app {app.id} --entry {entry.id}",
         f"Icon={entry.icon or 'application-x-ms-dos-executable'}",
@@ -285,7 +287,8 @@ def write_desktop(app: App, entry: Entry) -> Path:
         "Actions=malive-uninstall;",
         "",
         "[Desktop Action malive-uninstall]",
-        f"Name={_desktop_escape(f'Desinstalar {app.name}')}",
+        f"Name={_desktop_escape(f'Uninstall {app.name}')}",
+        f"Name[es]={_desktop_escape(f'Desinstalar {app.name}')}",
         "Icon=edit-delete",
         f"Exec={_desktop_escape(exec_quote(malive_run_path()))} --uninstall {app.id}",
         "",
@@ -320,27 +323,6 @@ def rewrite_all() -> int:
 # ksycoca6_<idioma>_<hash de XDG_DATA_DIRS>.
 DESKTOP_ENV_VARS = ("LANG", "LANGUAGE", "LC_ALL", "LC_MESSAGES", "XDG_DATA_DIRS",
                     "XDG_CONFIG_DIRS", "XDG_DATA_HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME")
-
-
-def desktop_shell_env(names=("plasmashell", "gnome-shell")) -> dict[str, str] | None:
-    """Entorno del proceso del escritorio (de este usuario) que está en marcha."""
-    uid = os.getuid()
-    for entry in Path("/proc").iterdir():
-        if not entry.name.isdigit():
-            continue
-        try:
-            if (entry / "comm").read_text().strip() not in names or entry.stat().st_uid != uid:
-                continue
-            raw = (entry / "environ").read_bytes()
-        except OSError:
-            continue
-        env = {}
-        for item in raw.split(b"\0"):
-            key, sep, value = item.partition(b"=")
-            if sep:
-                env[key.decode(errors="replace")] = value.decode(errors="replace")
-        return env
-    return None
 
 
 def _menu_rebuild_env() -> dict[str, str]:

@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from . import config, paths
+from .i18n import T
 
 GITHUB_API = "https://api.github.com/repos/GloriousEggroll/proton-ge-custom/releases"
 GITHUB_LATEST = GITHUB_API + "/latest"
@@ -77,7 +78,7 @@ def latest_release() -> Release:
 def release_by_name(name: str) -> Release:
     """Para reinstalar una versión fijada que se haya borrado."""
     if not VERSION_RE.fullmatch(name):
-        raise ProtonError(f"Nombre de versión no válido: {name}")
+        raise ProtonError(T(f"Nombre de versión no válido: {name}", f"Invalid version name: {name}"))
     return _release(f"{GITHUB_API}/tags/{name}")
 
 
@@ -86,14 +87,15 @@ def _release(url: str) -> Release:
         with _http_get(url) as r:
             data = json.load(r)
     except OSError as e:
-        raise ProtonError(f"No se pudo consultar GitHub: {e}") from e
+        raise ProtonError(T(f"No se pudo consultar GitHub: {e}", f"Could not reach GitHub: {e}")) from e
     machine = platform.machine()
     assets = [a for a in data.get("assets", [])
               if machine == "aarch64" or "aarch64" not in a.get("name", "")]
     tarball = next((a for a in assets if a.get("name", "").startswith("GE-Proton")
                     and a["name"].endswith((".tar.gz", ".tar.xz"))), None)
     if not tarball:
-        raise ProtonError("La versión de GE-Proton no tiene un archivo descargable para esta arquitectura")
+        raise ProtonError(T("La versión de GE-Proton no tiene un archivo descargable para esta arquitectura",
+                              "This GE-Proton version has no download for this architecture"))
     base = re.sub(r"\.tar\.(gz|xz)$", "", tarball["name"])
     sums = [a for a in assets if a.get("name", "").endswith(".sha512sum")]
     checksum = next((a for a in sums if a["name"].startswith(base)), sums[0] if sums else None)
@@ -119,13 +121,13 @@ def download(release: Release, on_progress=None) -> str:
             with _http_get(release.checksum_url) as r:
                 text = r.read().decode(errors="replace")
         except OSError as e:
-            raise ProtonError(f"No se pudo descargar la suma de verificación: {e}") from e
+            raise ProtonError(T(f"No se pudo descargar la suma de verificación: {e}", f"Could not download the checksum: {e}")) from e
         lines = [l.split() for l in text.splitlines() if l.strip()]
         match = [l for l in lines if len(l) >= 2 and l[-1].lstrip("*") == release.tarball_name]
         chosen = (match or lines or [[""]])[0]
         expected = chosen[0].lower() if re.fullmatch(r"[0-9a-fA-F]{128}", chosen[0]) else None
         if expected is None:
-            raise ProtonError("El fichero de suma de verificación no tiene un formato válido")
+            raise ProtonError(T("El fichero de suma de verificación no tiene un formato válido", "The checksum file is not valid"))
 
     work = Path(tempfile.mkdtemp(prefix=".download-", dir=dest_root))
     try:
@@ -142,19 +144,21 @@ def download(release: Release, on_progress=None) -> str:
                     if on_progress:
                         on_progress(done, total)
         except OSError as e:
-            raise ProtonError(f"Fallo al descargar {release.tarball_name}: {e}") from e
+            raise ProtonError(T(f"Fallo al descargar {release.tarball_name}: {e}", f"Failed to download {release.tarball_name}: {e}")) from e
 
         if expected and h.hexdigest() != expected:
-            raise ProtonError(f"La suma SHA-512 de {release.tarball_name} no coincide; descarga descartada")
+            raise ProtonError(T(f"La suma SHA-512 de {release.tarball_name} no coincide; descarga descartada",
+                                f"The SHA-512 of {release.tarball_name} does not match; download discarded"))
 
         extract = work / "x"
         extract.mkdir()
         r = subprocess.run(["tar", "-xf", str(archive), "-C", str(extract)], capture_output=True, text=True)
         if r.returncode != 0:
-            raise ProtonError(f"No se pudo extraer {release.tarball_name}: {r.stderr.strip()}")
+            raise ProtonError(T(f"No se pudo extraer {release.tarball_name}: {r.stderr.strip()}",
+                                f"Could not extract {release.tarball_name}: {r.stderr.strip()}"))
         candidates = [p for p in extract.iterdir() if p.is_dir() and is_valid(p)]
         if len(candidates) != 1:
-            raise ProtonError("El archivo descargado no contiene un Proton válido")
+            raise ProtonError(T("El archivo descargado no contiene un Proton válido", "The download does not contain a valid Proton"))
         candidates[0].rename(final)
     finally:
         shutil.rmtree(work, ignore_errors=True)
@@ -199,6 +203,7 @@ def ensure_for_new_app(ui=None) -> str:
         return name
     if ui is None:
         return update()[0]
-    with ui.progress("Descargando GE-Proton (solo la primera vez, ~500 MB)…"):
+    with ui.progress(T("Descargando GE-Proton (solo la primera vez, ~500 MB)…",
+                       "Downloading GE-Proton (first time only, ~500 MB)…")):
         name, _ = update()
     return name

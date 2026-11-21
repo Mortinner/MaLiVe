@@ -1,5 +1,15 @@
 # Cambios
 
+## 0.1.9
+- **MaLiVe en inglés.** Los diálogos, avisos, errores y comandos de MaLiVe
+  salen en español si el sistema está en español y en inglés en cualquier
+  otro caso, como ya hacía el asistente de instalación. Si MaLiVe se abre
+  desde el menú o el temporizador sin el idioma de la sesión, lo toma del
+  propio Plasma o GNOME. `MALIVE_LANG=es|en` lo fuerza.
+- Los accesos del menú llevan sus textos en los dos idiomas (`Name[es]=…`).
+- Las actualizaciones de MaLiVe se buscan **cada 3 horas** en vez de una vez
+  al día. GE-Proton se sigue comprobando una vez por semana.
+
 ## 0.1.8
 - Arreglado de verdad el menú de Plasma que no se actualizaba al instalar o
   desinstalar. Cuando MaLiVe se abre desde el menú (p. ej. «Desinstalar») o

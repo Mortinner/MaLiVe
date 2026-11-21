@@ -12,6 +12,8 @@ import struct
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .i18n import T
+
 MACHINES = {0x14C: "x86", 0x8664: "x64", 0xAA64: "arm64", 0x1C4: "arm"}
 SUBSYSTEMS = {2: "gui", 3: "console", 1: "native", 10: "efi"}
 
@@ -59,15 +61,15 @@ def parse(path: str | Path) -> PEInfo:
         head = f.read(4096)
         size = path.stat().st_size
         if len(head) < 64 or head[:2] != b"MZ":
-            raise NotPE("sin firma MZ")
+            raise NotPE(T("sin firma MZ", "no MZ signature"))
         (pe_off,) = struct.unpack_from("<I", head, 0x3C)
         if pe_off + 24 > size or pe_off > 16 * 1024 * 1024:
-            raise NotPE("e_lfanew fuera de rango (¿ejecutable DOS?)")
+            raise NotPE(T("e_lfanew fuera de rango (¿ejecutable DOS?)", "e_lfanew out of range (DOS executable?)"))
         f.seek(pe_off)
         hdr = f.read(4096)
         base = 0
         if len(hdr) < 24 or hdr[base : base + 4] != b"PE\0\0":
-            raise NotPE("sin firma PE (¿ejecutable DOS o NE de 16 bits?)")
+            raise NotPE(T("sin firma PE (¿ejecutable DOS o NE de 16 bits?)", "no PE signature (DOS or 16-bit NE executable?)"))
 
         coff = base + 4
         machine, nsections = struct.unpack_from("<HH", hdr, coff)
@@ -77,7 +79,7 @@ def parse(path: str | Path) -> PEInfo:
         (magic,) = struct.unpack_from("<H", hdr, opt)
         is_64 = magic == 0x20B
         if magic not in (0x10B, 0x20B):
-            raise NotPE(f"cabecera opcional desconocida 0x{magic:x}")
+            raise NotPE(T(f"cabecera opcional desconocida 0x{magic:x}", f"unknown optional header 0x{magic:x}"))
         (subsystem,) = struct.unpack_from("<H", hdr, opt + 68)
         ndirs_off = opt + (108 if is_64 else 92)
         (ndirs,) = struct.unpack_from("<I", hdr, ndirs_off)

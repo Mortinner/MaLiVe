@@ -20,6 +20,10 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setenv("XDG_CONFIG_HOME", str(home / ".config"))
     monkeypatch.setenv("XDG_STATE_HOME", str(home / ".local/state"))
     monkeypatch.setenv("MALIVE_NO_GUI", "1")
+    # Los tests comprueban mensajes en español; hay tests propios para el inglés
+    monkeypatch.setenv("MALIVE_LANG", "es")
+    from malive import i18n
+    i18n.reset()
     # PATH mínimo, pero con el Python de los tests primero: el umu-run falso
     # (#!/usr/bin/env python3) necesita pylnk3, que puede no estar en el del sistema
     monkeypatch.setenv("PATH", f"{Path(sys.executable).parent}:/usr/bin:/bin")

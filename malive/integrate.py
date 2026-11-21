@@ -132,8 +132,10 @@ def handler_desktop_text() -> str:
         "[Desktop Entry]",
         "Type=Application",
         "Name=MaLiVe",
-        "GenericName=Ejecutar programa de Windows",
-        "Comment=Ejecuta e instala programas de Windows con doble clic",
+        "GenericName=Run Windows program",
+        "GenericName[es]=Ejecutar programa de Windows",
+        "Comment=Run and install Windows programs with a double click",
+        "Comment[es]=Ejecuta e instala programas de Windows con doble clic",
         f"Exec={_desktop_escape(exec_quote(malive_run_path()))} %f",
         "Icon=application-x-ms-dos-executable",
         "Terminal=false",
@@ -181,13 +183,16 @@ def malive_cli_path() -> str:
 
 
 def install_timer() -> bool:
-    """Temporizador diario: actualiza MaLiVe y, una vez por semana, GE-Proton."""
+    """Temporizador cada 3 h: actualiza MaLiVe y, una vez por semana, GE-Proton.
+
+    Cada comprobación es una consulta a la API de GitHub (límite sin sesión:
+    60/h por IP), así que 8 al día no son ningún problema."""
     d = paths.systemd_user_dir()
     d.mkdir(parents=True, exist_ok=True)
     _remove_units(LEGACY_TIMER)  # el de la 0.1.x, solo para Proton
     (d / f"{TIMER}.service").write_text(
         "[Unit]\n"
-        "Description=MaLiVe: actualizaciones automáticas (MaLiVe y GE-Proton)\n"
+        "Description=MaLiVe: automatic updates (MaLiVe and GE-Proton)\n"
         "After=network-online.target\n"
         "Wants=network-online.target\n\n"
         "[Service]\n"
@@ -198,12 +203,11 @@ def install_timer() -> bool:
     )
     (d / f"{TIMER}.timer").write_text(
         "[Unit]\n"
-        "Description=MaLiVe: buscar actualizaciones cada día\n\n"
+        "Description=MaLiVe: check for updates every 3 hours\n\n"
         "[Timer]\n"
         "OnStartupSec=10min\n"
-        "OnCalendar=daily\n"
-        "RandomizedDelaySec=2h\n"
-        "Persistent=true\n\n"
+        "OnUnitActiveSec=3h\n"
+        "RandomizedDelaySec=15min\n\n"
         "[Install]\n"
         "WantedBy=timers.target\n"
     )

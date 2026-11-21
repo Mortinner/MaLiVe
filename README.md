@@ -10,8 +10,8 @@ per app, and app-menu entries with the program's own icon.
 [![Tests](https://github.com/Mortinner/MaLiVe/actions/workflows/ci.yml/badge.svg)](https://github.com/Mortinner/MaLiVe/actions/workflows/ci.yml)
 · License GPL-3.0
 
-> **Note:** the user interface (installer, dialogs, notifications) is in
-> Spanish for now. An English translation is planned.
+MaLiVe speaks **English and Spanish**: the installer, dialogs, notifications
+and commands use Spanish if your system is in Spanish, and English otherwise.
 
 ## Installation
 
@@ -77,7 +77,8 @@ removes the app together with its prefix.
 ## Automatic updates
 
 A systemd user timer (`malive-auto.timer`) checks the
-[GitHub releases](https://github.com/Mortinner/MaLiVe/releases) once a day:
+[GitHub releases](https://github.com/Mortinner/MaLiVe/releases) every 3 hours
+(one small request each time, well below GitHub's limits):
 
 1. Downloads the zip and verifies its SHA-256.
 2. If the new version needs system software you don't have, it shows a
@@ -166,7 +167,7 @@ malive integrate | unintegrate
 When `release.json` changes on `main`, GitHub Actions creates the `vX.Y.Z`
 tag, runs the tests, builds `malive-X.Y.Z.zip` with its `.sha256`
 and publishes the release with the CHANGELOG notes. Machines running MaLiVe
-update themselves within a day.
+update themselves within about 3 hours.
 
 ## Development
 

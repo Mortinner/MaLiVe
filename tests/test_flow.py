@@ -236,7 +236,7 @@ def test_uninstall_from_menu_action(env, monkeypatch):
     text = desktop.read_text()
     assert "Actions=malive-uninstall;" in text
     assert "[Desktop Action malive-uninstall]" in text
-    assert "Name=Desinstalar Test App" in text
+    assert "Name=Uninstall Test App" in text and "Name[es]=Desinstalar Test App" in text
     assert f"Exec=/opt/test/malive-run --uninstall {app.id}" in text
 
     # el usuario dice que no

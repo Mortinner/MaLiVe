@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import lnk, pe
+from .i18n import T
 
 OLE_MAGIC = bytes.fromhex("d0cf11e0a1b11ae1")
 SEVENZIP_MAGIC = b"7z\xbc\xaf\x27\x1c"
@@ -150,7 +151,7 @@ def detect(path: str | Path) -> Detection:
         try:
             sc = lnk.parse_bytes(head)
         except (lnk.NotLnk, struct.error) as e:
-            return Detection("unsupported", path, reason=f".lnk dañado: {e}")
+            return Detection("unsupported", path, reason=T(f".lnk dañado: {e}", f"damaged .lnk: {e}"))
         return Detection("lnk", path, shortcut=sc, name=path.stem)
 
     if head[:8] == OLE_MAGIC:
@@ -159,18 +160,18 @@ def detect(path: str | Path) -> Detection:
             raw = msi_product_name(path)
             name = clean_product_name(raw) if raw else name_from_path(path)
             return Detection("msi", path, subtype="msi", name=name)
-        return Detection("unsupported", path, reason="documento OLE que no es un MSI")
+        return Detection("unsupported", path, reason=T("documento OLE que no es un MSI", "OLE document that is not an MSI"))
 
     if head[:2] != b"MZ":
-        return Detection("unsupported", path, reason="no es un ejecutable de Windows")
+        return Detection("unsupported", path, reason=T("no es un ejecutable de Windows", "not a Windows executable"))
 
     try:
         info = pe.parse(path)
     except (pe.NotPE, struct.error) as e:
-        return Detection("dos", path, reason=f"ejecutable sin cabecera PE: {e}")
+        return Detection("dos", path, reason=T(f"ejecutable sin cabecera PE: {e}", f"executable without a PE header: {e}"))
 
     if info.is_dll:
-        return Detection("dll", path, pe=info, reason="es una biblioteca (.dll), no un programa")
+        return Detection("dll", path, pe=info, reason=T("es una biblioteca (.dll), no un programa", "it is a library (.dll), not a program"))
 
     rsrc = pe.read_resources(path, info)
     version = pe.version_strings(rsrc) if rsrc else {}

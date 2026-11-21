@@ -14,6 +14,7 @@ from pathlib import Path
 
 from . import config, paths, proton, ui
 from .config import App
+from .i18n import T
 
 log = logging.getLogger("malive")
 
@@ -279,9 +280,8 @@ def wait_idle(prefix: Path, poll: float = 2.0, settle: int = 2, timeout: float |
 def umu_binary() -> str:
     exe = os.environ.get("MALIVE_UMU_RUN") or shutil.which("umu-run")
     if not exe:
-        raise PrefixError(
-            "No se encuentra umu-run. Instálalo con:\n  sudo pacman -S umu-launcher"
-        )
+        raise PrefixError(T("No se encuentra umu-run. Instálalo con:\n  sudo pacman -S umu-launcher",
+                            "umu-run was not found. Install it with:\n  sudo pacman -S umu-launcher"))
     return exe
 
 
@@ -289,7 +289,8 @@ def ensure_proton_present(app: App) -> Path:
     path = proton.path_of(app.proton)
     if proton.is_valid(path):
         return path
-    with ui.progress(f"Descargando {app.proton}, la versión de Proton que usa {app.name}…"):
+    with ui.progress(T(f"Descargando {app.proton}, la versión de Proton que usa {app.name}…",
+                       f"Downloading {app.proton}, the Proton version used by {app.name}…")):
         proton.download(proton.release_by_name(app.proton))
     return path
 
@@ -364,13 +365,14 @@ def create(app: App, cfg: dict) -> None:
     """Crea el prefijo con Proton (umu-run "") mostrando "Preparando…"."""
     prefix = app.prefix_path
     prefix.mkdir(parents=True, exist_ok=True)
-    with ui.progress(f"Preparando el entorno para {app.name}…\n(solo la primera vez; puede tardar un par de minutos)"):
+    with ui.progress(T(f"Preparando el entorno para {app.name}…\n(solo la primera vez; puede tardar un par de minutos)",
+                       f"Preparing the environment for {app.name}…\n(first time only; it may take a couple of minutes)")):
         rc, _ = run_umu(app, cfg, [""], cwd=prefix, verb="waitforexitandrun", log_mode="w")
     if not is_created(prefix):
-        raise PrefixError(
-            f"No se pudo crear el entorno (umu-run terminó con código {rc}).\n"
-            f"Revisa el registro: {log_path(app)}"
-        )
+        raise PrefixError(T(
+            f"No se pudo crear el entorno (umu-run terminó con código {rc}).\nRevisa el registro: {log_path(app)}",
+            f"The environment could not be created (umu-run exited with code {rc}).\nCheck the log: {log_path(app)}",
+        ))
     apply_drives(app, cfg)
 
 

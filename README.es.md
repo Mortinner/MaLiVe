@@ -10,6 +10,10 @@ por app y accesos en el menú de aplicaciones con su icono.
 [![Tests](https://github.com/Mortinner/MaLiVe/actions/workflows/ci.yml/badge.svg)](https://github.com/Mortinner/MaLiVe/actions/workflows/ci.yml)
 · Licencia GPL-3.0
 
+MaLiVe habla **español e inglés**: el asistente, los diálogos, los avisos y
+los comandos salen en español si tu sistema está en español, y en inglés en
+otro caso.
+
 ## Instalación
 
 1. Descarga `malive-X.Y.Z.zip` de la [última versión](https://github.com/Mortinner/MaLiVe/releases/latest)
@@ -74,8 +78,9 @@ borra el programa junto con su prefijo.
 
 ## Actualizaciones automáticas
 
-Un temporizador de systemd de usuario (`malive-auto.timer`) busca cada día
-una versión nueva en las [releases de GitHub](https://github.com/Mortinner/MaLiVe/releases):
+Un temporizador de systemd de usuario (`malive-auto.timer`) busca cada 3 horas
+una versión nueva en las [releases de GitHub](https://github.com/Mortinner/MaLiVe/releases)
+(una consulta pequeña cada vez, muy por debajo de los límites de GitHub):
 
 1. Descarga el zip y comprueba su SHA-256.
 2. Si la versión nueva necesita software del sistema que no tienes, avisa con
@@ -161,7 +166,7 @@ malive integrate | unintegrate
 Cuando cambia `release.json` en `main`, GitHub Actions crea la etiqueta
 `vX.Y.Z`, pasa los tests, crea `malive-X.Y.Z.zip` con su `.sha256` y
 publica la release con las notas del CHANGELOG. Los equipos con MaLiVe se
-actualizan solos en menos de un día.
+actualizan solos en unas 3 horas como mucho.
 
 ## Desarrollo
 

@@ -29,13 +29,14 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import __version__, config, paths, ui
+from .i18n import T
 
 log = logging.getLogger("malive")
 
 REPO = "Mortinner/MaLiVe"
 API_LATEST = f"https://api.github.com/repos/{REPO}/releases/latest"
 RELEASES_PAGE = f"https://github.com/{REPO}/releases"
-CHECK_EVERY = 20 * 3600  # segundos entre comprobaciones automáticas
+CHECK_EVERY = int(2.5 * 3600)  # el temporizador va cada 3 h; margen por si se adelanta
 
 
 class UpdateError(Exception):
@@ -97,14 +98,14 @@ def latest_release() -> Release:
         with _get(API_LATEST) as r:
             data = json.load(r)
     except OSError as e:
-        raise UpdateError(f"No se pudo consultar GitHub: {e}") from e
+        raise UpdateError(T(f"No se pudo consultar GitHub: {e}", f"Could not reach GitHub: {e}")) from e
     tag = data.get("tag_name", "")
     version = tag.lstrip("vV")
     parse_version(version)
     assets = {a.get("name"): a.get("browser_download_url") for a in data.get("assets", [])}
     zname = f"malive-{version}.zip"
     if zname not in assets or f"{zname}.sha256" not in assets:
-        raise UpdateError(f"La release {tag} no tiene {zname} y su .sha256")
+        raise UpdateError(T(f"La release {tag} no tiene {zname} y su .sha256", f"Release {tag} has no {zname} and its .sha256"))
     return Release(version, assets[zname], assets[f"{zname}.sha256"],
                    notes=(data.get("body") or "").strip(), url=data.get("html_url") or RELEASES_PAGE)
 
@@ -120,9 +121,10 @@ def _download(rel: Release, dest: Path) -> Path:
                 out.write(chunk)
                 h.update(chunk)
     except OSError as e:
-        raise UpdateError(f"Fallo al descargar la versión {rel.version}: {e}") from e
+        raise UpdateError(T(f"Fallo al descargar la versión {rel.version}: {e}", f"Failed to download version {rel.version}: {e}")) from e
     if not re.fullmatch(r"[0-9a-f]{64}", expected) or h.hexdigest() != expected:
-        raise UpdateError("La suma SHA-256 de la descarga no coincide; actualización descartada")
+        raise UpdateError(T("La suma SHA-256 de la descarga no coincide; actualización descartada",
+                            "The SHA-256 of the download does not match; update discarded"))
     return zpath
 
 
@@ -132,7 +134,7 @@ def _extract(zpath: Path, dest: Path, version: str) -> Path:
         for info in zf.infolist():
             name = info.filename
             if not name.startswith(root) or ".." in Path(name).parts or name.startswith("/"):
-                raise UpdateError(f"Contenido inesperado en el zip: {name}")
+                raise UpdateError(T(f"Contenido inesperado en el zip: {name}", f"Unexpected content in the zip: {name}"))
         zf.extractall(dest)
         for info in zf.infolist():  # zipfile no restaura el bit de ejecución
             mode = (info.external_attr >> 16) & 0o777
@@ -140,7 +142,7 @@ def _extract(zpath: Path, dest: Path, version: str) -> Path:
                 os.chmod(dest / info.filename, mode)
     src = dest / root
     if not (src / "malive" / "__init__.py").is_file():
-        raise UpdateError("El zip no contiene el paquete malive")
+        raise UpdateError(T("El zip no contiene el paquete malive", "The zip does not contain the malive package"))
     return src
 
 
@@ -179,7 +181,7 @@ def _smoke_test(lib: Path, expected: str) -> None:
             "print(malive.__version__)")
     r = subprocess.run([_python(), "-I", "-c", code, str(lib)], capture_output=True, text=True, timeout=60)
     if r.returncode != 0 or r.stdout.strip() != expected:
-        raise UpdateError(f"La versión nueva no arranca: {(r.stderr or r.stdout).strip()[-400:]}")
+        raise UpdateError(T("La versión nueva no arranca: ", "The new version does not start: ") + (r.stderr or r.stdout).strip()[-400:])
 
 
 def install_from(src: Path, version: str) -> None:
@@ -210,14 +212,15 @@ def install_from(src: Path, version: str) -> None:
         for args in (["integrate"], ["refresh"]):
             r = subprocess.run([str(bin_dir() / "malive"), *args], capture_output=True, text=True, timeout=300)
             if r.returncode != 0:
-                raise UpdateError(f"«malive {' '.join(args)}» falló: {r.stderr.strip()[-300:]}")
+                raise UpdateError(T(f"«malive {' '.join(args)}» falló: ", f"«malive {' '.join(args)}» failed: ") + r.stderr.strip()[-300:])
     except (UpdateError, OSError, subprocess.TimeoutExpired) as e:
         log.error("actualización a %s fallida, volviendo atrás: %s", version, e)
         shutil.rmtree(current, ignore_errors=True)
         if previous.exists():
             previous.rename(current)
         write_wrappers(lib, bin_dir())
-        raise UpdateError(f"No se pudo completar la actualización ({e}); se mantiene la versión anterior") from e
+        raise UpdateError(T(f"No se pudo completar la actualización ({e}); se mantiene la versión anterior",
+                            f"The update could not be completed ({e}); the previous version is kept")) from e
 
 
 def _stamp() -> Path:
@@ -298,12 +301,13 @@ def auto() -> int:
         log.warning("actualización automática: %s", e)
         return 0  # sin conexión, etc.: se reintentará mañana
     if res.status == "updated":
-        ui.notify(f"MaLiVe se ha actualizado a la versión {res.version}.", icon="system-software-update")
+        ui.notify(T(f"MaLiVe se ha actualizado a la versión {res.version}.", f"MaLiVe has been updated to version {res.version}."),
+                  icon="system-software-update")
     elif res.status == "needs-packages" and res.staged:
         choice = ui.notify_action(
-            f"Hay una versión nueva de MaLiVe ({res.version}) que necesita instalar: "
-            f"{', '.join(res.missing)}.",
-            actions={"install": "Actualizar ahora"},
+            T(f"Hay una versión nueva de MaLiVe ({res.version}) que necesita instalar: {', '.join(res.missing)}.",
+              f"A new version of MaLiVe ({res.version}) needs to install: {', '.join(res.missing)}."),
+            actions={"install": T("Actualizar ahora", "Update now")},
             icon="system-software-update",
         )
         if choice == "install":

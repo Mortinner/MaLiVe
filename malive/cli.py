@@ -9,6 +9,7 @@ import time
 from pathlib import Path
 
 from . import __version__, config, integrate, paths, prefix as pfx, proton, runner, shortcuts, updater
+from .i18n import T
 
 
 def _human(n: int) -> str:
@@ -19,40 +20,49 @@ def _human(n: int) -> str:
     return f"{n:.1f} TB"
 
 
+def _yes(answer: str) -> bool:
+    return answer.strip().lower() in ("s", "si", "sí", "y", "yes")
+
+
 def _get_app(app_id: str) -> config.App:
     app = config.load_app(app_id)
     if app is None:
-        sys.exit(f"No existe la app «{app_id}». Usa «malive list».")
+        sys.exit(T(f"No existe la app «{app_id}». Usa «malive list».",
+                   f"There is no app «{app_id}». Use «malive list»."))
     return app
 
 
 def cmd_integrate(a) -> int:
     path = integrate.install_handler()
-    print(f"Asociación creada: {path}")
-    print("Los .exe, .msi y .lnk se abrirán con MaLiVe al hacer doble clic.")
+    print(T(f"Asociación creada: {path}", f"Association created: {path}"))
+    print(T("Los .exe, .msi y .lnk se abrirán con MaLiVe al hacer doble clic.",
+            ".exe, .msi and .lnk files will open with MaLiVe on double-click."))
     cfg = config.load_global()
     if not a.no_timer and (cfg.get("auto_update", True) or cfg.get("proton_auto_update", True)):
         ok = integrate.install_timer()
-        print("Actualizaciones automáticas (MaLiVe y GE-Proton): "
-              + ("activadas" if ok else "no se pudieron activar (systemctl --user)"))
+        print(T("Actualizaciones automáticas (MaLiVe y GE-Proton): ", "Automatic updates (MaLiVe and GE-Proton): ")
+              + (T("activadas", "enabled") if ok
+                 else T("no se pudieron activar (systemctl --user)", "could not be enabled (systemctl --user)")))
     return 0
 
 
 def cmd_unintegrate(a) -> int:
     integrate.remove_handler()
     integrate.remove_timer()
-    print("Asociaciones y temporizador eliminados. Las apps instaladas se conservan.")
+    print(T("Asociaciones y temporizador eliminados. Las apps instaladas se conservan.",
+            "Associations and timer removed. Installed apps are kept."))
     return 0
 
 
 def cmd_list(a) -> int:
     apps = config.all_apps()
     if not apps:
-        print("No hay apps. Haz doble clic en un instalador .exe o .msi para empezar.")
+        print(T("No hay apps. Haz doble clic en un instalador .exe o .msi para empezar.",
+                "No apps yet. Double-click a .exe or .msi installer to get started."))
         return 0
     cfg = config.load_global()
     for app in apps:
-        iso = "aislada" if app.effective_isolate(cfg) else "sin aislar"
+        iso = T("aislada", "isolated") if app.effective_isolate(cfg) else T("sin aislar", "not isolated")
         size = f", {_human(pfx.disk_usage(app.prefix_path))}" if a.size else ""
         print(f"{app.id}  —  {app.name}  [{app.kind}, {app.proton}, {iso}{size}]")
         for e in app.entries:
@@ -63,14 +73,16 @@ def cmd_list(a) -> int:
 def cmd_remove(a) -> int:
     app = _get_app(a.app)
     if pfx.is_busy(app.prefix_path):
-        sys.exit(f"«{app.name}» está en ejecución. Ciérrala antes de eliminarla.")
+        sys.exit(T(f"«{app.name}» está en ejecución. Ciérrala antes de eliminarla.",
+                   f"«{app.name}» is running. Close it before removing it."))
     if not a.yes:
-        ans = input(f"¿Eliminar «{app.name}» y todo su entorno ({app.prefix})? [s/N] ").strip().lower()
-        if ans not in ("s", "si", "sí", "y", "yes"):
-            print("Cancelado.")
+        ans = input(T(f"¿Eliminar «{app.name}» y todo su entorno ({app.prefix})? [s/N] ",
+                      f"Remove «{app.name}» and its whole environment ({app.prefix})? [y/N] "))
+        if not _yes(ans):
+            print(T("Cancelado.", "Cancelled."))
             return 1
     runner.discard_app(app)
-    print(f"«{app.name}» eliminada.")
+    print(T(f"«{app.name}» eliminada.", f"«{app.name}» removed."))
     return 0
 
 
@@ -84,13 +96,14 @@ def cmd_shortcuts(a) -> int:
         if sys.stdin.isatty() and cands:
             for i, c in enumerate(cands):
                 print(f"  [{i}] {c.name}: {c.exe}")
-            sel = input("Números a añadir (separados por espacios, vacío = ninguno): ").split()
+            sel = input(T("Números a añadir (separados por espacios, vacío = ninguno): ",
+                          "Numbers to add (separated by spaces, empty = none): ")).split()
             cands = [cands[int(i)] for i in sel if i.isdigit() and int(i) < len(cands)]
     created = shortcuts.register(app, cands)
     for e in created:
-        print(f"Creado: {e.name} -> {e.desktop}")
+        print(T(f"Creado: {e.name} -> {e.desktop}", f"Created: {e.name} -> {e.desktop}"))
     if not created:
-        print("No hay accesos nuevos que crear.")
+        print(T("No hay accesos nuevos que crear.", "No new menu entries to create."))
     return 0
 
 
@@ -99,9 +112,9 @@ def cmd_proton(a) -> int:
         used = proton.in_use()
         names = proton.installed()
         if not names:
-            print("No hay ningún GE-Proton descargado todavía.")
+            print(T("No hay ningún GE-Proton descargado todavía.", "No GE-Proton downloaded yet."))
         for n in names:
-            print(f"{n}{'  (en uso)' if n in used else ''}")
+            print(n + (T("  (en uso)", "  (in use)") if n in used else ""))
         return 0
     if a.action == "update":
         def progress(done, total):
@@ -114,22 +127,27 @@ def cmd_proton(a) -> int:
             return 1
         if not a.quiet:
             print()
-            print(f"{name} {'descargado' if new else 'ya estaba instalado'}. Se usará en las apps nuevas.")
+            print(T(f"{name} {'descargado' if new else 'ya estaba instalado'}. Se usará en las apps nuevas.",
+                    f"{name} {'downloaded' if new else 'was already installed'}. It will be used for new apps."))
         removed = proton.cleanup(config.load_global().get("proton_keep_unused", 1))
         if removed and not a.quiet:
-            print("Eliminadas versiones sin uso: " + ", ".join(removed))
+            print(T("Eliminadas versiones sin uso: ", "Removed unused versions: ") + ", ".join(removed))
         return 0
     if a.action == "use":
         if not a.app or not a.version:
-            sys.exit("Uso: malive proton use APP VERSIÓN")
+            sys.exit(T("Uso: malive proton use APP VERSIÓN", "Usage: malive proton use APP VERSION"))
         app = _get_app(a.app)
         if not proton.is_valid(proton.path_of(a.version)):
-            sys.exit(f"{a.version} no está descargado. Versiones: {', '.join(proton.installed()) or 'ninguna'}")
-        print(f"Aviso: el prefijo de «{app.name}» se actualizará a {a.version} en el próximo arranque "
-              "y no se puede volver atrás sin reinstalar.")
+            versions = ", ".join(proton.installed()) or T("ninguna", "none")
+            sys.exit(T(f"{a.version} no está descargado. Versiones: {versions}",
+                       f"{a.version} is not downloaded. Versions: {versions}"))
+        print(T(f"Aviso: el prefijo de «{app.name}» se actualizará a {a.version} en el próximo arranque "
+                "y no se puede volver atrás sin reinstalar.",
+                f"Note: the prefix of «{app.name}» will be upgraded to {a.version} on its next start "
+                "and cannot go back without reinstalling."))
         app.proton = a.version
         app.save()
-        print(f"«{app.name}» usará {a.version}.")
+        print(T(f"«{app.name}» usará {a.version}.", f"«{app.name}» will use {a.version}."))
         return 0
     return 2
 
@@ -140,18 +158,19 @@ def cmd_set(a) -> int:
         cfg = config.load_global()
         cfg["auto_update"] = value
         config.save_global(cfg)
-        print(f"Actualizaciones automáticas de MaLiVe: {a.value}")
+        print(T(f"Actualizaciones automáticas de MaLiVe: {a.value}", f"MaLiVe automatic updates: {a.value}"))
         return 0
     if a.app:
         app = _get_app(a.app)
         app.isolate = value
         app.save()
-        print(f"Aislamiento de «{app.name}»: {a.value}")
+        print(T(f"Aislamiento de «{app.name}»: {a.value}", f"Isolation of «{app.name}»: {a.value}"))
     else:
         cfg = config.load_global()
         cfg["isolate"] = value
         config.save_global(cfg)
-        print(f"Aislamiento por defecto: {a.value} (las apps con valor propio no cambian)")
+        print(T(f"Aislamiento por defecto: {a.value} (las apps con valor propio no cambian)",
+                f"Default isolation: {a.value} (apps with their own setting are not changed)"))
     return 0
 
 
@@ -175,7 +194,8 @@ def cmd_winetricks(a) -> int:
     cfg = config.load_global()
     runner._ensure_ready(app, cfg)
     rc, _ = pfx.run_umu(app, cfg, ["winetricks", *a.verbs], cwd=app.prefix_path)
-    print(f"winetricks terminó con código {rc}. Registro: {pfx.log_path(app)}")
+    print(T(f"winetricks terminó con código {rc}. Registro: {pfx.log_path(app)}",
+            f"winetricks exited with code {rc}. Log: {pfx.log_path(app)}"))
     return rc
 
 
@@ -191,18 +211,19 @@ def cmd_setup(a) -> int:
 
     name = proton.newest_installed()
     if name:
-        print(f"  GE-Proton ya descargado: {name}")
+        print(T(f"  GE-Proton ya descargado: {name}", f"  GE-Proton already downloaded: {name}"))
     else:
-        print("  Descargando GE-Proton (~500 MB)…")
+        print(T("  Descargando GE-Proton (~500 MB)…", "  Downloading GE-Proton (~500 MB)…"))
         try:
             name, _ = proton.update(progress)
         except proton.ProtonError as e:
             print(f"\n  Error: {e}", file=sys.stderr)
             return 1
-        print(f"\n  {name} listo.")
+        print(T(f"\n  {name} listo.", f"\n  {name} ready."))
 
-    print("  Preparando el runtime de Steam y comprobando que Proton funciona (unos minutos la primera vez)…")
-    test = config.App(id="_setup", name="prueba", kind="portable",
+    print(T("  Preparando el runtime de Steam y comprobando que Proton funciona (unos minutos la primera vez)…",
+            "  Preparing the Steam runtime and checking that Proton works (a few minutes the first time)…"))
+    test = config.App(id="_setup", name="test", kind="portable",
                       prefix=str(paths.data_dir() / ".setup-test"), proton=name)
     _sh.rmtree(test.prefix_path, ignore_errors=True)
     test.prefix_path.mkdir(parents=True)
@@ -213,10 +234,11 @@ def cmd_setup(a) -> int:
     finally:
         _sh.rmtree(test.prefix_path, ignore_errors=True)
     if not ok:
-        print(f"  Proton no ha podido crear un entorno (código {rc}). Registro: {pfx.log_path(test)}",
+        print(T(f"  Proton no ha podido crear un entorno (código {rc}). Registro: {pfx.log_path(test)}",
+                f"  Proton could not create an environment (code {rc}). Log: {pfx.log_path(test)}"),
               file=sys.stderr)
         return 1
-    print(f"  Todo correcto ({secs:.0f} s).")
+    print(T(f"  Todo correcto ({secs:.0f} s).", f"  All good ({secs:.0f} s)."))
     return 0
 
 
@@ -226,27 +248,30 @@ def cmd_update(a) -> int:
         if a.check:
             rel = updater.latest_release()
             if updater.parse_version(rel.version) > updater.parse_version(current):
-                print(f"Hay una versión nueva: {rel.version} (tienes la {current}).\n{rel.url}")
+                print(T(f"Hay una versión nueva: {rel.version} (tienes la {current}).\n{rel.url}",
+                        f"A new version is available: {rel.version} (you have {current}).\n{rel.url}"))
             else:
-                print(f"MaLiVe está al día ({current}).")
+                print(T(f"MaLiVe está al día ({current}).", f"MaLiVe is up to date ({current})."))
             return 0
         res = updater.check_and_update(force=True)
     except updater.UpdateError as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1
     if res.status == "up-to-date":
-        print(f"MaLiVe está al día ({current}).")
+        print(T(f"MaLiVe está al día ({current}).", f"MaLiVe is up to date ({current})."))
     elif res.status == "updated":
-        print(f"MaLiVe actualizado de la {current} a la {res.version}.")
+        print(T(f"MaLiVe actualizado de la {current} a la {res.version}.",
+                f"MaLiVe updated from {current} to {res.version}."))
     elif res.status == "needs-packages":
-        print(f"La versión {res.version} necesita instalar: {', '.join(res.missing)}.\n"
-              f"Abriendo el asistente de instalación…")
+        missing = ", ".join(res.missing)
+        print(T(f"La versión {res.version} necesita instalar: {missing}.\nAbriendo el asistente de instalación…",
+                f"Version {res.version} needs to install: {missing}.\nOpening the setup wizard…"))
         updater.launch_installer(res.staged)
     return 0
 
 
 def cmd_auto(a) -> int:
-    """Lo que ejecuta el temporizador diario."""
+    """Lo que ejecuta el temporizador (cada 3 horas)."""
     updater.auto()
     cfg = config.load_global()
     stamp = paths.data_dir() / ".proton-last-check"
@@ -265,7 +290,7 @@ def cmd_auto(a) -> int:
 
 def cmd_refresh(a) -> int:
     n = shortcuts.rewrite_all()
-    print(f"Accesos del menú actualizados: {n}")
+    print(T(f"Accesos del menú actualizados: {n}", f"Menu entries updated: {n}"))
     return 0
 
 
@@ -277,93 +302,111 @@ def cmd_doctor(a) -> int:
         print(f"  [{'OK' if good else '--'}] {label}" + ("" if good or not hint else f"  → {hint}"))
 
     print(f"MaLiVe {__version__}")
-    print("Dependencias:")
+    print(T("Dependencias:", "Dependencies:"))
     umu = shutil.which("umu-run")
     check("umu-run", bool(umu), "sudo pacman -S umu-launcher")
     ok = ok and bool(umu)
-    check("wrestool/icotool (iconos)", bool(shutil.which("wrestool") and shutil.which("icotool")),
-          "sudo pacman -S icoutils")
-    check("msiinfo (nombre de los .msi)", bool(shutil.which("msiinfo")), "sudo pacman -S msitools")
-    check("diálogos (zenity o kdialog)", bool(shutil.which("zenity") or shutil.which("kdialog")),
-          "sudo pacman -S zenity   (o kdialog en KDE)")
+    check(T("wrestool/icotool (iconos)", "wrestool/icotool (icons)"),
+          bool(shutil.which("wrestool") and shutil.which("icotool")), "sudo pacman -S icoutils")
+    check(T("msiinfo (nombre de los .msi)", "msiinfo (.msi names)"), bool(shutil.which("msiinfo")),
+          "sudo pacman -S msitools")
+    check(T("diálogos (zenity o kdialog)", "dialogs (zenity or kdialog)"),
+          bool(shutil.which("zenity") or shutil.which("kdialog")),
+          T("sudo pacman -S zenity   (o kdialog en KDE)", "sudo pacman -S zenity   (or kdialog on KDE)"))
     check("notify-send", bool(shutil.which("notify-send")), "sudo pacman -S libnotify")
     check("update-desktop-database", bool(shutil.which("update-desktop-database")),
           "sudo pacman -S desktop-file-utils")
-    print("Integración:")
-    check("doble clic en .exe/.msi asociado a MaLiVe", integrate.is_integrated(), "malive integrate")
-    check(f"malive-run en {shortcuts.malive_run_path()}", Path(shortcuts.malive_run_path()).is_file(),
-          "ejecuta install.sh")
+    print(T("Integración:", "Integration:"))
+    check(T("doble clic en .exe/.msi asociado a MaLiVe", "double-click on .exe/.msi opens MaLiVe"),
+          integrate.is_integrated(), "malive integrate")
+    check(T(f"malive-run en {shortcuts.malive_run_path()}", f"malive-run at {shortcuts.malive_run_path()}"),
+          Path(shortcuts.malive_run_path()).is_file(), T("ejecuta install.sh", "run install.sh"))
     print("Proton:")
     names = proton.installed()
-    check(f"GE-Proton descargado ({', '.join(names) or 'ninguno'})", bool(names),
-          "malive proton update (o se descargará solo en el primer uso)")
-    print(f"Datos: {paths.data_dir()}\nConfig: {paths.config_dir()}\nRegistros: {paths.logs_dir()}")
+    listed = ", ".join(names) or T("ninguno", "none")
+    check(T(f"GE-Proton descargado ({listed})", f"GE-Proton downloaded ({listed})"), bool(names),
+          T("malive proton update (o se descargará solo en el primer uso)",
+            "malive proton update (or it will be downloaded on first use)"))
+    print(T(f"Datos: {paths.data_dir()}\nConfig: {paths.config_dir()}\nRegistros: {paths.logs_dir()}",
+            f"Data: {paths.data_dir()}\nConfig: {paths.config_dir()}\nLogs: {paths.logs_dir()}"))
     return 0 if ok else 1
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="malive", description="MaLiVe — programas de Windows con doble clic.")
+    p = argparse.ArgumentParser(prog="malive", description=T("MaLiVe — programas de Windows con doble clic.",
+                                                             "MaLiVe — Windows programs with a double click."))
     p.add_argument("--version", action="version", version=f"malive {__version__}")
     sub = p.add_subparsers(dest="cmd", required=True)
 
-    s = sub.add_parser("integrate", help="asociar .exe/.msi/.lnk a MaLiVe")
-    s.add_argument("--no-timer", action="store_true", help="sin comprobación semanal de GE-Proton")
+    s = sub.add_parser("integrate", help=T("asociar .exe/.msi/.lnk a MaLiVe", "associate .exe/.msi/.lnk with MaLiVe"))
+    s.add_argument("--no-timer", action="store_true",
+                   help=T("sin actualizaciones automáticas", "without automatic updates"))
     s.set_defaults(func=cmd_integrate)
 
-    sub.add_parser("unintegrate", help="quitar asociaciones y temporizador").set_defaults(func=cmd_unintegrate)
+    sub.add_parser("unintegrate", help=T("quitar asociaciones y temporizador", "remove associations and timer")
+                   ).set_defaults(func=cmd_unintegrate)
 
-    s = sub.add_parser("list", help="apps instaladas")
-    s.add_argument("--size", action="store_true", help="mostrar el espacio que ocupa cada prefijo")
+    s = sub.add_parser("list", help=T("apps instaladas", "installed apps"))
+    s.add_argument("--size", action="store_true",
+                   help=T("mostrar el espacio que ocupa cada prefijo", "show the disk space of each prefix"))
     s.set_defaults(func=cmd_list)
 
-    s = sub.add_parser("run", help="igual que malive-run")
+    s = sub.add_parser("run", help=T("igual que malive-run", "same as malive-run"))
     s.add_argument("file")
     s.add_argument("args", nargs=argparse.REMAINDER)
     s.set_defaults(func=lambda a: runner.main([a.file, *a.args]))
 
-    s = sub.add_parser("remove", help="eliminar una app y su prefijo")
+    s = sub.add_parser("remove", help=T("eliminar una app y su prefijo", "remove an app and its prefix"))
     s.add_argument("app")
     s.add_argument("-y", "--yes", action="store_true")
     s.set_defaults(func=cmd_remove)
 
-    s = sub.add_parser("shortcuts", help="volver a buscar accesos directos de una app")
+    s = sub.add_parser("shortcuts", help=T("volver a buscar accesos directos de una app", "rescan an app's shortcuts"))
     s.add_argument("app")
-    s.add_argument("--all", action="store_true", help="ofrecer también los .exe sin acceso directo")
+    s.add_argument("--all", action="store_true",
+                   help=T("ofrecer también los .exe sin acceso directo", "also offer .exe files without a shortcut"))
     s.set_defaults(func=cmd_shortcuts)
 
-    s = sub.add_parser("proton", help="gestionar GE-Proton")
+    s = sub.add_parser("proton", help=T("gestionar GE-Proton", "manage GE-Proton"))
     s.add_argument("action", choices=["list", "update", "use"])
     s.add_argument("app", nargs="?")
     s.add_argument("version", nargs="?")
     s.add_argument("--quiet", action="store_true")
     s.set_defaults(func=cmd_proton)
 
-    s = sub.add_parser("set", help="cambiar opciones (global o de una app)")
+    s = sub.add_parser("set", help=T("cambiar opciones (global o de una app)", "change settings (global or per app)"))
     s.add_argument("key", choices=["isolate", "auto-update"])
     s.add_argument("value", choices=["on", "off"])
     s.add_argument("--app")
     s.set_defaults(func=cmd_set)
 
-    s = sub.add_parser("exec", help="ejecutar winecfg, regedit, cmd... en el prefijo de una app")
+    s = sub.add_parser("exec", help=T("ejecutar winecfg, regedit, cmd... en el prefijo de una app",
+                                      "run winecfg, regedit, cmd... in an app's prefix"))
     s.add_argument("app")
     s.add_argument("program")
     s.add_argument("args", nargs=argparse.REMAINDER)
     s.set_defaults(func=cmd_exec)
 
-    s = sub.add_parser("winetricks", help="instalar componentes (dotnet48, vcrun2022...) en una app")
+    s = sub.add_parser("winetricks", help=T("instalar componentes (dotnet48, vcrun2022...) en una app",
+                                            "install components (dotnet48, vcrun2022...) in an app"))
     s.add_argument("app")
     s.add_argument("verbs", nargs="+")
     s.set_defaults(func=cmd_winetricks)
 
-    sub.add_parser("doctor", help="comprobar dependencias e integración").set_defaults(func=cmd_doctor)
-    s = sub.add_parser("update", help="actualizar MaLiVe ahora (--check: solo comprobar)")
+    sub.add_parser("doctor", help=T("comprobar dependencias e integración", "check dependencies and integration")
+                   ).set_defaults(func=cmd_doctor)
+    s = sub.add_parser("update", help=T("actualizar MaLiVe ahora (--check: solo comprobar)",
+                                        "update MaLiVe now (--check: only check)"))
     s.add_argument("--check", action="store_true")
     s.set_defaults(func=cmd_update)
-    sub.add_parser("auto", help="(lo usa el temporizador) actualizar MaLiVe y GE-Proton"
+    sub.add_parser("auto", help=T("(lo usa el temporizador) actualizar MaLiVe y GE-Proton",
+                                  "(used by the timer) update MaLiVe and GE-Proton")
                    ).set_defaults(func=cmd_auto)
-    sub.add_parser("refresh", help="regenerar los accesos del menú de todas las apps"
+    sub.add_parser("refresh", help=T("regenerar los accesos del menú de todas las apps",
+                                     "regenerate the menu entries of all apps")
                    ).set_defaults(func=cmd_refresh)
-    sub.add_parser("setup", help="descargar GE-Proton y el runtime y probar que Proton arranca"
+    sub.add_parser("setup", help=T("descargar GE-Proton y el runtime y probar que Proton arranca",
+                                   "download GE-Proton and the runtime and test that Proton starts")
                    ).set_defaults(func=cmd_setup)
     return p
 
