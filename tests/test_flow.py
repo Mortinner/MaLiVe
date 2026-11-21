@@ -392,3 +392,34 @@ def test_delayed_rebuilds_use_systemd_timer_with_desktop_env(env, monkeypatch):
     assert "--setenv=XDG_MENU_PREFIX=plasma-" in first and "--setenv=LANG=es_ES.UTF-8" in first
     assert not any("SECRET" in a for a in first)  # solo las variables necesarias
     assert first[-2:] == ["/usr/bin/kbuildsycoca6", "--noincremental"]
+
+
+def _fake_mime_db(env):
+    mime = env.home / ".local/share/mime"
+    mime.mkdir(parents=True, exist_ok=True)
+    (mime / "globs2").write_text("50:text/plain:*.txt\n")
+
+
+def test_installed_app_gets_mimetype_and_opens_files(env):
+    _fake_mime_db(env)
+    setup = copy_fixture(env, "TestApp-2.1.0-x64-setup.exe")
+    runner.main([str(setup)])
+    app = config.all_apps()[0]
+    entry = app.entries[0]
+    text = Path(entry.desktop).read_text()
+    assert f"--app {app.id} --entry {entry.id} %F" in text
+    assert "MimeType=text/plain;" in text
+
+    # «Abrir con» un fichero de Descargas (compartida como E:)
+    doc = env.downloads / "nota.txt"
+    doc.write_text("hola")
+    assert runner.main(["--app", app.id, "--entry", entry.id, str(doc)]) == 0
+    assert env.calls()[-1]["argv"] == [entry.exe, "E:\\nota.txt"]
+
+    # Un fichero fuera de las carpetas compartidas: su carpeta se monta como Y:
+    other = env.tmp / "usb"
+    other.mkdir()
+    (other / "otra.txt").write_text("x")
+    assert runner.main(["--app", app.id, "--entry", entry.id, str(other / "otra.txt")]) == 0
+    last = env.calls()[-1]
+    assert last["argv"] == [entry.exe, "Y:\\otra.txt"] and last["drives"]["y:"] == str(other)

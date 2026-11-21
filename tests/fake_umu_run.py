@@ -78,6 +78,11 @@ if b"NullsoftInst" in data:
     pylnk3.for_file(r"C:\Program Files\TestApp\uninstall.exe", str(sm / "Uninstall Test App.lnk"))
     # duplicado en el escritorio: no debe crear un segundo .desktop
     pylnk3.for_file(target, str(c / "users/steamuser/Desktop/Test App.lnk"))
+    # Asociación .txt → hello.exe, como haría el instalador en el registro
+    with open(prefix / "system.reg", "a") as reg:
+        reg.write('\n[Software\\\\Classes\\\\.txt] 1700000000\n@="TestApp.txt"\n'
+                  '\n[Software\\\\Classes\\\\TestApp.txt\\\\shell\\\\open\\\\command] 1700000000\n'
+                  '@="\\"C:\\\\Program Files\\\\TestApp\\\\hello.exe\\" \\"%1\\""\n')
     linger()
     # «Ejecutar Test App» al terminar: el contenedor no acaba hasta cerrarla
     import time

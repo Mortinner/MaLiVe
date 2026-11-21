@@ -72,14 +72,24 @@ def _ensure_ready(app: App, cfg: dict) -> None:
 # --------------------------------------------------------------------------
 
 def launch(app: App, exe: Path, args: list[str], workdir: Path | None = None,
-           source_dir: Path | None = None) -> int:
+           source_dir: Path | None = None, docs: list[Path] | None = None) -> int:
     # Un "\0" en un argumento hace fallar a subprocess ("embedded null byte");
     # las apps instaladas con la 0.1.4 o anteriores pueden tenerlo guardado.
     args = [a.replace("\0", "") for a in args]
     args = [a for a in args if a]
     cfg = config.load_global()
     _ensure_ready(app, cfg)
+    docs = [d.resolve() for d in (docs or []) if d.exists()]
+    if docs and source_dir is None:
+        source_dir = docs[0].parent  # si hace falta, su carpeta se monta como Y:
     pfx.apply_drives(app, cfg, source_dir)
+    for doc in docs:
+        # Los programas de Windows esperan rutas de Windows: /home/u/Documentos/a.txt → D:\a.txt
+        win = pfx.unix_to_windows(app.prefix_path, doc)
+        if win is None:
+            log.warning("%s no es accesible desde el entorno de %s", doc, app.id)
+            continue
+        args.append(win)
     argv = [str(exe), *args]
     if _is_console(exe):
         # Sin esto un programa de consola no muestra ninguna ventana: "start"
@@ -127,7 +137,7 @@ def _is_console(exe: Path) -> bool:
         return False
 
 
-def run_entry(app_id: str, entry_id: str) -> int:
+def run_entry(app_id: str, entry_id: str, docs: list[Path] | None = None) -> int:
     app = config.load_app(app_id)
     if app is None:
         raise UserError(T(f"No existe la app «{app_id}» en MaLiVe. Puede que se haya eliminado.",
@@ -149,7 +159,7 @@ def run_entry(app_id: str, entry_id: str) -> int:
             shortcuts.refresh_menus()
         return 1
     workdir = Path(entry.workdir) if entry.workdir else None
-    return launch(app, exe, entry.args, workdir)
+    return launch(app, exe, list(entry.args), workdir, docs=docs)
 
 
 # --------------------------------------------------------------------------
@@ -206,6 +216,9 @@ def install(det: detect.Detection, args: list[str], app: App | None = None) -> i
         pfx.wait_idle(prefix, on_tick=scan)
     after = shortcuts.take_snapshot(prefix)
     scan(full=True)
+    # Las asociaciones de ficheros suelen registrarse al final de la instalación
+    if app.entries and shortcuts.rewrite_app(app):
+        shortcuts.refresh_menus()
 
     if not created:
         exes = shortcuts.new_exes(prefix, before, after)
@@ -352,7 +365,9 @@ def main(argv: list[str] | None = None) -> int:
         if opts.app:
             if not opts.entry:
                 raise UserError(T("Falta --entry", "--entry is missing"))
-            return run_entry(opts.app, opts.entry)
+            # Ficheros de «Abrir con» o arrastrados al icono (%F en el .desktop)
+            docs = [Path(p) for p in ([opts.file] if opts.file else []) + list(opts.args)]
+            return run_entry(opts.app, opts.entry, docs)
         if not opts.file:
             build_parser().print_help()
             return 2

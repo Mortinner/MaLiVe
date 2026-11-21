@@ -76,6 +76,11 @@ si hay varios, pregunta cuáles poner en el menú. Si no se instaló nada
 Cada acceso del menú tiene la acción **Desinstalar** en su clic derecho, que
 borra el programa junto con su prefijo.
 
+Los programas instalados también salen en **Abrir con** del gestor de archivos
+para los tipos de fichero que su instalador registró en Windows (se leen del
+registro del prefijo), y aceptan ficheros arrastrados a su icono. Las rutas de
+Linux se traducen a las de Windows (`~/Documentos/notas.txt` → `D:\notas.txt`).
+
 ## Actualizaciones automáticas
 
 Un temporizador de systemd de usuario (`malive-auto.timer`) busca cada 3 horas

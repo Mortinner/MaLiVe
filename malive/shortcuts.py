@@ -17,7 +17,7 @@ import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import config, lnk, paths, prefix as pfx
+from . import assoc, config, lnk, paths, prefix as pfx
 from .session import desktop_shell_env
 from .config import App, Entry
 
@@ -263,11 +263,10 @@ def malive_run_path() -> str:
     return str(Path.home() / ".local/bin/malive-run")
 
 
-def write_desktop(app: App, entry: Entry) -> Path:
-    apps_dir = paths.applications_dir()
-    apps_dir.mkdir(parents=True, exist_ok=True)
-    path = apps_dir / f"malive-{app.id}-{entry.id}.desktop"
+def desktop_text(app: App, entry: Entry) -> str:
     wmclass = Path(entry.exe).name.lower()
+    exe_win = pfx.unix_to_windows(app.prefix_path, Path(entry.exe))
+    mimes = assoc.mimetypes_for(app.prefix_path, exe_win)
     lines = [
         "[Desktop Entry]",
         "Type=Application",
@@ -275,11 +274,13 @@ def write_desktop(app: App, entry: Entry) -> Path:
         f"Comment={_desktop_escape(f'{app.name} (Windows, via MaLiVe)')}",
         f"Comment[es]={_desktop_escape(f'{app.name} (Windows, vía MaLiVe)')}",
         # El valor de Exec lleva su propio nivel de escape (\\ -> \) además de las comillas
-        f"Exec={_desktop_escape(exec_quote(malive_run_path()))} --app {app.id} --entry {entry.id}",
+        # %F: el programa recibe los ficheros de «Abrir con» o arrastrados al icono
+        f"Exec={_desktop_escape(exec_quote(malive_run_path()))} --app {app.id} --entry {entry.id} %F",
         f"Icon={entry.icon or 'application-x-ms-dos-executable'}",
         "Terminal=false",
         "Categories=Utility;",
         f"StartupWMClass={_desktop_escape(wmclass)}",
+        *([f"MimeType={';'.join(mimes)};"] if mimes else []),
         f"X-MaLiVe-App={app.id}",
         # Acción del clic derecho en el menú (Plasma, GNOME…). La opción
         # "Desinstalar y gestionar complementos" de Plasma solo funciona con
@@ -293,11 +294,37 @@ def write_desktop(app: App, entry: Entry) -> Path:
         f"Exec={_desktop_escape(exec_quote(malive_run_path()))} --uninstall {app.id}",
         "",
     ]
+    return "\n".join(lines)
+
+
+def write_desktop(app: App, entry: Entry) -> Path:
+    apps_dir = paths.applications_dir()
+    apps_dir.mkdir(parents=True, exist_ok=True)
+    path = apps_dir / f"malive-{app.id}-{entry.id}.desktop"
+    text = desktop_text(app, entry)
     tmp = path.with_suffix(".tmp")
-    tmp.write_text("\n".join(lines), encoding="utf-8")
+    tmp.write_text(text, encoding="utf-8")
     tmp.chmod(0o755)
     os.replace(tmp, path)
     return path
+
+
+def rewrite_app(app: App) -> bool:
+    """Reescribe los .desktop de una app si su contenido ha cambiado (p. ej.
+    asociaciones que el instalador registró al final). Devuelve si cambió algo."""
+    changed = False
+    for entry in app.entries:
+        if not entry.desktop or not Path(entry.desktop).exists():
+            continue
+        new = desktop_text(app, entry)
+        try:
+            old = Path(entry.desktop).read_text(encoding="utf-8")
+        except OSError:
+            old = ""
+        if new != old:
+            write_desktop(app, entry)
+            changed = True
+    return changed
 
 
 def rewrite_all() -> int:

@@ -74,6 +74,11 @@ installed (cancelled installer) and the prefix was new, it is removed.
 Each menu entry has an **Uninstall** action in its right-click menu, which
 removes the app together with its prefix.
 
+Installed programs also appear in your file manager's **Open with** menu
+for the file types their installer registered in Windows (read from the
+prefix's registry), and accept files dragged onto their icon. Linux paths
+are translated to Windows ones (`~/Documents/notes.txt` → `D:\notes.txt`).
+
 ## Automatic updates
 
 A systemd user timer (`malive-auto.timer`) checks the

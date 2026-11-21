@@ -1,5 +1,16 @@
 # Cambios
 
+## 0.1.12
+- **«Abrir con».** Los programas instalados con MaLiVe aceptan ficheros: salen
+  en «Abrir con» del gestor de archivos y se les puede arrastrar un fichero al
+  icono. MaLiVe traduce la ruta de Linux a la de Windows
+  (`~/Documentos/nota.txt` → `D:\nota.txt`); si el fichero está fuera de las
+  carpetas compartidas, su carpeta se monta como `Y:`.
+- Los tipos de fichero de cada programa se leen del registro de Windows de su
+  entorno (las asociaciones que hizo su instalador) y se traducen a tipos de
+  Linux: así el programa aparece directamente en la lista corta de «Abrir
+  con» para esos ficheros.
+
 ## 0.1.11
 - Arreglado de verdad (causa comprobada a mano en Plasma 6): crear o borrar
   un acceso y reconstruir el menú en el mismo instante no hace que Plasma
