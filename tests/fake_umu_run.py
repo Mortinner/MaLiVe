@@ -46,6 +46,7 @@ with open(os.environ["FAKE_UMU_LOG"], "a") as f:
         "dlls": os.environ.get("WINEDLLOVERRIDES", ""),
         "nvapi": os.environ.get("PROTON_ENABLE_NVAPI", ""),
         "dri_prime": os.environ.get("DRI_PRIME", ""),
+        "nvlibs": os.environ.get("PROTON_NVIDIA_LIBS", ""),
         "nvcuda": os.path.realpath(c / "windows/system32/nvcuda.dll"),
         "drives": {e.name: os.readlink(e) for e in dd.iterdir() if e.is_symlink()},
     }) + "\n")

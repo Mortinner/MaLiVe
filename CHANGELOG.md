@@ -1,5 +1,14 @@
 # Cambios
 
+## 0.1.23
+- **NVIDIA (CUDA, NVENC, OptiX) con lo que ya trae GE-Proton.** Los GE-Proton
+  recientes incluyen las nvidia-libs de SveSop y las activan con
+  `PROTON_NVIDIA_LIBS=1`; si no se pide, en cada arranque Proton borra las que
+  pusiera otro, y por eso no llegaba a funcionar lo de la 0.1.18. Ahora, con
+  tarjeta NVIDIA, MaLiVe se lo pide a Proton para todos los programas y no
+  descarga ni enlaza nada. La descarga propia queda solo para un Proton que
+  no las traiga.
+
 ## 0.1.22
 - **Soporte de NVIDIA: se descargaba el paquete equivocado.** nvidia-libs
   publica dos (`-fakedll`, para integrarlo dentro de Wine, y el normal);

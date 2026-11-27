@@ -287,6 +287,10 @@ def cmd_nvidia(a) -> int:
     print(T("Tarjeta NVIDIA: ", "NVIDIA card: ") +
           (T(f"sí (driver {nvidia.driver_version() or '?'})", f"yes (driver {nvidia.driver_version() or '?'})")
            if gpu else T("no detectada", "not detected")))
+    newest = proton.newest_installed()
+    if newest and nvidia.proton_provides(proton.path_of(newest)):
+        print(T(f"CUDA/NVENC: integrados en {newest} (PROTON_NVIDIA_LIBS)",
+                f"CUDA/NVENC: built into {newest} (PROTON_NVIDIA_LIBS)"))
     libs = nvidia.installed()
     print("nvidia-libs: " + (libs.name if libs else T("sin descargar", "not downloaded")))
     fail = nvidia.last_failure()
@@ -386,7 +390,8 @@ def cmd_setup(a) -> int:
     for line in hardware.summary(hw):
         print(f"» {line}")
     cfg = config.load_global()
-    if hw.nvidia is not None and cfg.get("nvidia_mode", "auto") != "off" and nvidia.installed() is None:
+    if (hw.nvidia is not None and cfg.get("nvidia_mode", "auto") != "off" and nvidia.installed() is None
+            and not nvidia.proton_provides(proton.path_of(name))):
         print(T("» Descargando el soporte de NVIDIA (CUDA, NVENC)…", "» Downloading NVIDIA support (CUDA, NVENC)…"))
         try:
             nvidia.download(progress)
@@ -486,7 +491,8 @@ def cmd_auto(a) -> int:
                 runner.log.warning("repuesto de la plantilla: %s", e)
     # nvidia-libs: misma cadencia semanal, solo si hay tarjeta NVIDIA
     from . import nvidia
-    if old and cfg.get("nvidia_mode", "auto") != "off" and nvidia.gpu_present():
+    if (old and cfg.get("nvidia_mode", "auto") != "off" and nvidia.gpu_present()
+            and not (newest and nvidia.proton_provides(proton.path_of(newest)))):
         try:
             nvidia.download()
         except nvidia.NvidiaError as e:

@@ -43,6 +43,13 @@ class NvidiaError(Exception):
     pass
 
 
+def proton_provides(proton_dir: Path) -> bool:
+    """¿Trae este Proton las nvidia-libs integradas? (GE-Proton recientes:
+    files/lib/wine/nvidia-libs, se activan con PROTON_NVIDIA_LIBS=1). Si las
+    trae, Proton gestiona esas DLL en cada arranque y borra las que no pone él."""
+    return (proton_dir / "files" / "lib" / "wine" / "nvidia-libs").is_dir()
+
+
 def gpu_present() -> bool:
     """¿Hay una tarjeta NVIDIA con el driver propietario cargado?"""
     return Path("/proc/driver/nvidia/version").is_file()

@@ -148,3 +148,21 @@ def test_download_real_flow(env, monkeypatch):
     with pytest.raises(nvidia.NvidiaError):
         nvidia.download()
     assert nvidia.installed() == d
+
+
+def test_proton_with_builtin_nvidia_libs_is_used(env, monkeypatch):
+    """GE-Proton reciente trae nvidia-libs: se activa con PROTON_NVIDIA_LIBS=1 y
+    no se descarga ni se enlaza nada (Proton borraría nuestros enlaces)."""
+    from malive import proton
+    monkeypatch.setattr(nvidia, "gpu_present", lambda: True)
+    (proton.path_of("GE-Proton10-1") / "files/lib/wine/nvidia-libs").mkdir(parents=True)
+    downloads = []
+    monkeypatch.setattr(nvidia, "download", lambda on_progress=None: downloads.append(1))
+    app = _app(env)
+    assert runner.main(["--app", app.id, "--entry", app.entries[0].id]) == 0
+    call = env.calls()[-1]
+    assert call["nvlibs"] == "1" and call["nvapi"] == "1"
+    assert "nvcuda" not in call["dlls"]
+    assert not downloads
+    s32 = app.prefix_path / "drive_c/windows/system32"
+    assert not (s32 / "nvcuda.dll").is_symlink()

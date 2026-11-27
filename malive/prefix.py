@@ -334,6 +334,12 @@ def setup_nvidia(app: App, cfg: dict, env: dict[str, str]) -> dict[str, str]:
     las DLL de Proton. Nunca impide arrancar el programa."""
     try:
         if app.effective_nvidia(cfg) and nvidia.gpu_present():
+            if nvidia.proton_provides(proton.path_of(app.proton)):
+                # Lo trae Proton: se lo pedimos y él pone y quita sus DLL
+                nvidia.unlink_from(app.prefix_path)
+                env.setdefault("PROTON_NVIDIA_LIBS", "1")
+                env.setdefault("PROTON_ENABLE_NVAPI", "1")
+                return {}
             libs = nvidia.ensure(ui)
             if libs is not None:
                 nvidia.link_into(app.prefix_path, libs)
