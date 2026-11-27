@@ -12,7 +12,7 @@ import subprocess
 import time
 from pathlib import Path
 
-from . import config, mounts, paths, proton, quirks, ui
+from . import config, mounts, nvidia, paths, proton, quirks, ui
 from .config import App
 from .i18n import T
 
@@ -328,12 +328,30 @@ def build_env(app: App, cfg: dict, verb: str | None = None) -> dict[str, str]:
     return env
 
 
-def apply_app_settings(env: dict[str, str], app: App, exe: str) -> None:
-    """Ajustes conocidos para ese .exe (quirks) y los propios de la app, que
-    mandan. Lo que el usuario ya traiga en WINEDLLOVERRIDES se respeta."""
+def setup_nvidia(app: App, cfg: dict, env: dict[str, str]) -> dict[str, str]:
+    """CUDA/NVENC si la app lo tiene activado y hay tarjeta NVIDIA: enlaza las
+    DLL en el entorno y devuelve los WINEDLLOVERRIDES necesarios. Si no, deja
+    las DLL de Proton. Nunca impide arrancar el programa."""
+    try:
+        if app.effective_nvidia(cfg) and nvidia.gpu_present():
+            libs = nvidia.ensure(ui)
+            if libs is not None:
+                nvidia.link_into(app.prefix_path, libs)
+                env.setdefault("PROTON_ENABLE_NVAPI", "1")
+                return nvidia.overrides()
+        else:
+            nvidia.unlink_from(app.prefix_path)
+    except OSError as e:
+        log.warning("soporte NVIDIA en %s: %s", app.id, e)
+    return {}
+
+
+def apply_app_settings(env: dict[str, str], app: App, exe: str, extra_dlls: dict[str, str] | None = None) -> None:
+    """Ajustes conocidos para ese .exe (quirks), los de NVIDIA y los propios de
+    la app, que mandan. Lo que el usuario ya traiga en WINEDLLOVERRIDES se respeta."""
     name = exe.replace("\\", "/").rsplit("/", 1)[-1]
     q = quirks.merged(app.id, name)
-    dlls = {**q.get("dll", {}), **app.dll_overrides}
+    dlls = {**q.get("dll", {}), **(extra_dlls or {}), **app.dll_overrides}
     for key, value in {**q.get("env", {}), **app.env}.items():
         env[key] = value
     if dlls:
@@ -394,7 +412,8 @@ def run_umu(app: App, cfg: dict, argv: list[str], cwd: Path | None = None,
         # a que se cerrase; "run" lanza en paralelo con el mismo wineserver.
         verb = "run" if is_busy(app.prefix_path) else "waitforexitandrun"
     env = build_env(app, cfg, verb)
-    apply_app_settings(env, app, argv[0] if argv else "")
+    extra = setup_nvidia(app, cfg, env)
+    apply_app_settings(env, app, argv[0] if argv else "", extra)
     if install_path is not None:
         env["STEAM_COMPAT_INSTALL_PATH"] = str(install_path)
     extra = container_paths(app.prefix_path)

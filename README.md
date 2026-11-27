@@ -152,6 +152,8 @@ malive proton list|update|use
 malive update [--check]         update MaLiVe
 malive set isolate on|off [--app APP]
 malive set host-drives on|off   data disks and NAS as drives (M:, N:…)
+malive nvidia [APP on|off|default]   NVIDIA CUDA/NVENC/OptiX for an app (nvidia-libs)
+malive set nvidia on|off        enable it by default for every app
 malive dll APP [DLL=MODE…] [--remove DLL…]   DLL overrides (e.g. sapi=d disables it)
 malive env APP [VAR=VALUE…] [--remove VAR…]  launch variables (e.g. PROTON_ENABLE_NVAPI=1)
 malive doctor                   check dependencies and integration

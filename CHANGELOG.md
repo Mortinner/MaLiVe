@@ -1,5 +1,17 @@
 # Cambios
 
+## 0.1.18
+- **NVIDIA: CUDA, NVENC/NVDEC y OptiX dentro de Proton** (experimental).
+  Proton no trae los puentes que dan a los programas de Windows acceso a CUDA
+  ni al codificador de vídeo de la tarjeta (Format Factory no ofrecía NVENC).
+  `malive nvidia APP on` descarga una vez nvidia-libs (SveSop, LGPL), enlaza
+  sus DLL en el entorno de esa app y activa también NVAPI. `off` devuelve las
+  de Proton. Solo actúa si hay una tarjeta NVIDIA con el driver propietario;
+  si la descarga falla, el programa arranca igual. Desactivado por defecto
+  mientras se prueba (`malive set nvidia on` lo activa para todas).
+- `malive nvidia` muestra la tarjeta, el driver, la versión de nvidia-libs y
+  qué apps lo tienen activo; `malive nvidia update` baja la última versión.
+
 ## 0.1.17
 - Los ajustes conocidos de un programa se aplican también a su instalador.
   Si al terminar se marca «Ejecutar Format Factory», el programa lo abre el

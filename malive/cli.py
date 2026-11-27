@@ -155,6 +155,13 @@ def cmd_proton(a) -> int:
 
 def cmd_set(a) -> int:
     value = {"on": True, "off": False}[a.value]
+    if a.key == "nvidia":
+        cfg = config.load_global()
+        cfg["nvidia"] = value
+        config.save_global(cfg)
+        print(T(f"Soporte NVIDIA (CUDA, NVENC) por defecto: {a.value} (las apps con valor propio no cambian)",
+                f"NVIDIA support (CUDA, NVENC) by default: {a.value} (apps with their own setting are not changed)"))
+        return 0
     if a.key == "host-drives":
         cfg = config.load_global()
         cfg["host_drives"] = value
@@ -241,6 +248,57 @@ def cmd_dll(a) -> int:
 
 def cmd_env(a) -> int:
     return _kv_command(a, "env", "Variables de entorno", "Environment variables")
+
+
+def cmd_nvidia(a) -> int:
+    """malive nvidia [APP on|off|default] | malive nvidia update"""
+    from . import nvidia
+    cfg = config.load_global()
+    args = list(a.args)
+    if args == ["update"]:
+        try:
+            d = nvidia.download(_progress_printer())
+        except nvidia.NvidiaError as e:
+            print(f"\nError: {e}", file=sys.stderr)
+            return 1
+        print(T(f"\nnvidia-libs listo: {d.name}", f"\nnvidia-libs ready: {d.name}"))
+        return 0
+    if len(args) == 2:
+        app = _get_app(args[0])
+        state = args[1].lower()
+        if state not in ("on", "off", "default"):
+            sys.exit(T("Uso: malive nvidia APP on|off|default", "Usage: malive nvidia APP on|off|default"))
+        app.nvidia = None if state == "default" else state == "on"
+        app.save()
+        if not app.effective_nvidia(cfg):
+            pfx.nvidia.unlink_from(app.prefix_path)
+        print(T(f"Soporte NVIDIA de «{app.name}»: {state}. Se aplica la próxima vez que lo abras.",
+                f"NVIDIA support for «{app.name}»: {state}. It applies the next time you open it."))
+        if state == "on" and not nvidia.gpu_present():
+            print(T("Aviso: no se detecta una tarjeta NVIDIA con su driver propietario; no tendrá efecto.",
+                    "Warning: no NVIDIA card with its proprietary driver was detected; it will have no effect."))
+        return 0
+    if args:
+        sys.exit(T("Uso: malive nvidia [APP on|off|default] | malive nvidia update",
+                   "Usage: malive nvidia [APP on|off|default] | malive nvidia update"))
+    gpu = nvidia.gpu_present()
+    print(T("Tarjeta NVIDIA: ", "NVIDIA card: ") +
+          (T(f"sí (driver {nvidia.driver_version() or '?'})", f"yes (driver {nvidia.driver_version() or '?'})")
+           if gpu else T("no detectada", "not detected")))
+    libs = nvidia.installed()
+    print("nvidia-libs: " + (libs.name if libs else T("sin descargar", "not downloaded")))
+    print(T(f"Por defecto: {'on' if cfg.get('nvidia') else 'off'}", f"Default: {'on' if cfg.get('nvidia') else 'off'}"))
+    for app in config.all_apps():
+        own = "" if app.nvidia is None else T(" (propio)", " (own)")
+        print(f"  {app.id}: {'on' if app.effective_nvidia(cfg) else 'off'}{own}")
+    return 0
+
+
+def _progress_printer():
+    def progress(done, total):
+        if total:
+            print(f"\r  {done * 100 // total:3d}%  {_human(done)} / {_human(total)}", end="", flush=True)
+    return progress
 
 
 def cmd_winetricks(a) -> int:
@@ -429,7 +487,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.set_defaults(func=cmd_proton)
 
     s = sub.add_parser("set", help=T("cambiar opciones (global o de una app)", "change settings (global or per app)"))
-    s.add_argument("key", choices=["isolate", "auto-update", "host-drives"])
+    s.add_argument("key", choices=["isolate", "auto-update", "host-drives", "nvidia"])
     s.add_argument("value", choices=["on", "off"])
     s.add_argument("--app")
     s.set_defaults(func=cmd_set)
@@ -440,6 +498,11 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("program")
     s.add_argument("args", nargs=argparse.REMAINDER)
     s.set_defaults(func=cmd_exec)
+
+    s = sub.add_parser("nvidia", help=T("CUDA/NVENC de NVIDIA para una app: malive nvidia [APP on|off|default] | update",
+                                        "NVIDIA CUDA/NVENC for an app: malive nvidia [APP on|off|default] | update"))
+    s.add_argument("args", nargs="*")
+    s.set_defaults(func=cmd_nvidia)
 
     s = sub.add_parser("dll", help=T("DLL ajustadas de una app (p. ej. sapi=d desactiva sapi.dll)",
                                      "an app's DLL overrides (e.g. sapi=d disables sapi.dll)"))

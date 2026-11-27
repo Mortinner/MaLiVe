@@ -28,6 +28,9 @@ DEFAULTS = {
     # GE-Proton descargados que se conservan aunque ninguna app los use.
     "proton_keep_unused": 1,
     "gameid": "umu-default",
+    # CUDA/NVENC/OptiX para los programas (nvidia-libs de SveSop) si hay tarjeta NVIDIA.
+    # Desactivado por defecto mientras se prueba; por app: malive nvidia APP on.
+    "nvidia": False,
 }
 
 
@@ -109,6 +112,7 @@ class App:
     source: str = ""  # instalador o ejecutable original
     created: str = ""
     isolate: bool | None = None  # None = usar el valor global
+    nvidia: bool | None = None  # CUDA/NVENC en Proton; None = valor global
     dll_overrides: dict[str, str] = field(default_factory=dict)  # {"sapi": "d"}: WINEDLLOVERRIDES
     env: dict[str, str] = field(default_factory=dict)  # variables extra al lanzar (PROTON_*, QT_*…)
     last_used: str = ""  # último lanzamiento (ISO); para proponer destino a los complementos
@@ -120,6 +124,9 @@ class App:
 
     def entry(self, entry_id: str) -> Entry | None:
         return next((e for e in self.entries if e.id == entry_id), None)
+
+    def effective_nvidia(self, cfg: dict) -> bool:
+        return bool(cfg.get("nvidia", False)) if self.nvidia is None else self.nvidia
 
     def effective_isolate(self, cfg: dict) -> bool:
         return cfg.get("isolate", True) if self.isolate is None else self.isolate
