@@ -145,3 +145,33 @@ def mimetypes_for(prefix: Path, exe_win: str | None) -> list[str]:
     # Nunca "todos los ficheros": convertiría el programa en opción para cualquier cosa
     mimes.discard("application/octet-stream")
     return sorted(mimes)
+
+
+# Tipos de archivo comprimido (para la categoría «Archiving» del menú)
+_ARCHIVE_MIMES = {
+    "application/zip", "application/x-7z-compressed", "application/vnd.rar",
+    "application/x-rar", "application/x-rar-compressed", "application/x-tar",
+    "application/gzip", "application/x-gzip", "application/x-bzip2",
+    "application/x-xz", "application/x-lzma", "application/zstd",
+    "application/x-zstd", "application/x-cab", "application/vnd.ms-cab-compressed",
+    "application/x-iso9660-image", "application/x-arj", "application/x-lzh-compressed",
+    "application/x-compressed-tar", "application/x-bzip2-compressed-tar",
+    "application/x-xz-compressed-tar", "application/x-zstd-compressed-tar",
+}
+
+
+def categories_for(mimes: list[str]) -> str:
+    """Categoría del menú según los tipos de fichero que abre el programa.
+    Los reproductores registran vídeo y audio a la vez: manda el vídeo."""
+    kinds = {m.split("/", 1)[0] for m in mimes}
+    if "video" in kinds:
+        return "AudioVideo;Video;Player;"
+    if "audio" in kinds:
+        return "AudioVideo;Audio;Player;"
+    if "image" in kinds:
+        return "Graphics;Viewer;"
+    if any(m in _ARCHIVE_MIMES for m in mimes):
+        return "Utility;Archiving;Compression;"
+    if "text" in kinds:
+        return "Utility;TextEditor;"
+    return "Utility;"

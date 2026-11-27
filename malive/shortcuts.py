@@ -278,7 +278,7 @@ def desktop_text(app: App, entry: Entry) -> str:
         f"Exec={_desktop_escape(exec_quote(malive_run_path()))} --app {app.id} --entry {entry.id} %F",
         f"Icon={entry.icon or 'application-x-ms-dos-executable'}",
         "Terminal=false",
-        "Categories=Utility;",
+        f"Categories={assoc.categories_for(mimes)}",
         f"StartupWMClass={_desktop_escape(wmclass)}",
         *([f"MimeType={';'.join(mimes)};"] if mimes else []),
         f"X-MaLiVe-App={app.id}",

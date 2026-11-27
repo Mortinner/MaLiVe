@@ -409,6 +409,7 @@ def test_installed_app_gets_mimetype_and_opens_files(env):
     text = Path(entry.desktop).read_text()
     assert f"--app {app.id} --entry {entry.id} %F" in text
     assert "MimeType=text/plain;" in text
+    assert "Categories=Utility;TextEditor;" in text
 
     # «Abrir con» un fichero de Descargas (compartida como E:)
     doc = env.downloads / "nota.txt"

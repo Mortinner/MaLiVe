@@ -75,3 +75,14 @@ def test_unescape_unicode():
     # Wine escribe 4 cifras cuando le sigue un carácter hexadecimal: «ña» → \x00f1a
     assert assoc._unescape(r'C:\\Archivos\\Espa\x00f1a') == "C:\\Archivos\\España"
     assert assoc._unescape(r'Espa\xf1') == "Españ"
+
+
+def test_categories_for():
+    from malive.assoc import categories_for
+    assert categories_for(["audio/mpeg", "video/x-matroska"]) == "AudioVideo;Video;Player;"
+    assert categories_for(["audio/flac"]) == "AudioVideo;Audio;Player;"
+    assert categories_for(["image/png"]) == "Graphics;Viewer;"
+    assert categories_for(["application/x-7z-compressed", "application/zip"]) == "Utility;Archiving;Compression;"
+    assert categories_for(["text/plain"]) == "Utility;TextEditor;"
+    assert categories_for([]) == "Utility;"
+    assert categories_for(["application/x-keepass2"]) == "Utility;"
