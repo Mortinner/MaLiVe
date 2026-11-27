@@ -227,7 +227,38 @@ def _png_size(name: str) -> int:
     return int(m.group(1)) * 100 + int(m.group(3)) if m else 0
 
 
-_TEXT_SUFFIXES = {".log", ".bak", ".json", ".ini", ".cfg", ".conf", ".xml", ".txt", ".yaml", ".yml"}
+_TEXT_SUFFIXES = {".log", ".bak", ".json", ".ini", ".cfg", ".conf", ".xml", ".txt", ".yaml", ".yml",
+                  ".ldb"}  # .ldb/.log: ajustes de lanzadores Chromium/Electron (Local Storage/leveldb)
+
+
+def registry_icon_hints(prefix: Path) -> tuple[list[str], list[str]]:
+    """Lo estándar de Windows: en «Desinstalar programas» (…\\CurrentVersion\\Uninstall)
+    cada instalador anota DisplayIcon (el icono) e InstallLocation (su carpeta)."""
+    icons: list[str] = []
+    dirs: list[str] = []
+    for reg in (prefix / "system.reg", prefix / "user.reg"):
+        try:
+            text = reg.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        in_uninstall = False
+        for line in text.splitlines():
+            if line.startswith("["):
+                in_uninstall = "\\\\uninstall\\\\" in line.lower()
+                continue
+            if not in_uninstall:
+                continue
+            m = re.match(r'"(DisplayIcon|InstallLocation)"="(.*)"\s*$', line)
+            if not m:
+                continue
+            value = m.group(2).replace("\\\\", "\\").strip().strip('"')
+            if m.group(1) == "DisplayIcon":
+                icons.append(re.sub(r",\s*-?\d+$", "", value).strip('"'))
+            elif value:
+                dirs.append(value)
+    return icons, dirs
+
+
 _WIN_PATH = re.compile(r'([A-Za-z]:\\{1,2}[^"\'\r\n<>|*?\x00-\x1f]{1,260})')
 
 
@@ -247,7 +278,8 @@ def icons_from_app_data(prefix: Path, max_files: int = 60) -> list[Path]:
         for dirpath, dirs, names in os.walk(root):
             if dirpath[len(str(root)):].count(os.sep) >= 4:
                 dirs[:] = []
-            dirs[:] = [d for d in dirs if d.lower() not in ("cache", "code cache", "gpucache", "microsoft", "temp")]
+            dirs[:] = [d for d in dirs if d.lower() not in ("cache", "code cache", "gpucache", "microsoft", "temp",
+                                                            "indexeddb", "service worker", "blob_storage")]
             for n in names:
                 fp = Path(dirpath) / n
                 if fp.suffix.lower() in _TEXT_SUFFIXES or ".log" in n.lower():
@@ -260,6 +292,17 @@ def icons_from_app_data(prefix: Path, max_files: int = 60) -> list[Path]:
     c = pfx.drive_c(prefix).resolve()
     found_icos: dict[str, Path] = {}
     seen_dirs: set[str] = set()
+    reg_icons, reg_dirs = registry_icon_hints(prefix)
+    for win in reg_icons:
+        unix = pfx.windows_to_unix(prefix, win)
+        if unix is not None and unix.suffix.lower() in (".ico", ".exe") and unix.is_file():
+            found_icos.setdefault(str(unix), unix)
+    for win in reg_dirs:
+        unix = pfx.windows_to_unix(prefix, win)
+        if unix is not None and unix.is_dir():
+            seen_dirs.add(str(unix))
+            for ico in unix.glob("*.ico"):
+                found_icos.setdefault(str(ico), ico)
     for f in files[:max_files]:
         try:
             text = f.read_text(encoding="utf-8", errors="ignore")

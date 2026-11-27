@@ -1,5 +1,15 @@
 # Cambios
 
+## 0.1.29
+- Más fuentes para encontrar el icono y la carpeta de instalación, por orden
+  de fiabilidad y todas genéricas:
+  - el registro de Windows, en «Desinstalar programas»: `DisplayIcon` (el
+    icono) e `InstallLocation` (la carpeta), lo que anotan casi todos los
+    instaladores;
+  - los ajustes de los lanzadores Chromium/Electron (`Local Storage/leveldb`,
+    donde Armored Warfare guarda la ruta de instalación elegida);
+  - los ficheros de configuración y registros de texto en AppData (0.1.28).
+
 ## 0.1.28
 - **Icono de lanzadores que instalan el juego donde dice el usuario.** El .exe
   del lanzador de Armored Warfare no trae icono; el juego deja `GameIcon.ico`

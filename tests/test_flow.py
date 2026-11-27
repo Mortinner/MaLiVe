@@ -505,3 +505,29 @@ def test_icon_found_through_paths_in_app_logs(env, monkeypatch):
     entry = next(e for e in config.load_app(app.id).entries if e.name == "Game Launcher")
     assert entry.icon == str(game / "GameIcon.ico")
     assert f"Icon={entry.icon}" in Path(entry.desktop).read_text()
+
+
+def test_icon_from_uninstall_registry_and_leveldb(env, monkeypatch):
+    from malive import mounts, shortcuts
+    data = env.tmp / "DataLinux"
+    a = data / "Games" / "A"
+    b = data / "Games" / "B"
+    for d in (a, b):
+        d.mkdir(parents=True)
+    (a / "GameIcon.ico").write_bytes(b"\x00\x00\x01\x00")
+    (b / "b.ico").write_bytes(b"\x00\x00\x01\x00")
+    monkeypatch.setattr(mounts, "data_mounts", lambda *a, **k: [data])
+    launcher = env.downloads / "aw_launcher.exe"
+    shutil.copy(FIX / "hello.exe", launcher)
+    assert runner.main([str(launcher)]) == 0
+    app = config.all_apps()[0]
+    # Registro de Windows: «Desinstalar programas» con DisplayIcon
+    with open(app.prefix_path / "system.reg", "a") as reg:
+        reg.write('\n[Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Uninstall\\\\Game A] 1700000000\n'
+                  '"DisplayIcon"="M:\\\\Games\\\\A\\\\GameIcon.ico,0"\n')
+    assert a / "GameIcon.ico" in shortcuts.icons_from_app_data(app.prefix_path)
+    # Ajustes de un lanzador Chromium (Local Storage/leveldb, binario)
+    ldb = app.prefix_path / "drive_c/users/steamuser/AppData/Local/L/Local Storage/leveldb"
+    ldb.mkdir(parents=True)
+    (ldb / "000005.ldb").write_bytes(b"\x00\x01installPath\x00M:\\\\Games\\\\B\x00\xff")
+    assert b / "b.ico" in shortcuts.icons_from_app_data(app.prefix_path)
