@@ -510,16 +510,46 @@ def write_desktop(app: App, entry: Entry) -> Path:
     return path
 
 
+def app_icons_dir(app: App) -> Path:
+    """Los iconos van dentro del contenedor (C:\\icons, idea de Marcos): al
+    desinstalar se borran con él y el contenedor queda autosuficiente."""
+    return pfx.drive_c(app.prefix_path) / "icons"
+
+
+def _icon_base(app: App, entry_id: str) -> Path:
+    return app_icons_dir(app) / entry_id
+
+
+def migrate_icon(app: App, entry: Entry) -> bool:
+    """Iconos de versiones anteriores (~/.local/share/malive/icons) → C:\\icons."""
+    if not entry.icon:
+        return False
+    old = Path(entry.icon)
+    legacy = paths.icons_dir()
+    if legacy not in old.parents or not old.is_file():
+        return False
+    dest = _icon_base(app, entry.id).with_suffix(old.suffix)
+    try:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(old), dest)
+    except OSError:
+        return False
+    entry.icon = str(dest)
+    return True
+
+
 def retry_icon(app: App, entry: Entry) -> bool:
     """Si la entrada no tiene icono, lo busca otra vez (el programa puede haberlo
-    dejado después: lanzadores que descargan el juego). Devuelve si lo encontró."""
+    dejado después: lanzadores que descargan el juego). Devuelve si cambió."""
+    if migrate_icon(app, entry):
+        return True
     if entry.icon and Path(entry.icon).exists():
         return False
     exe = Path(entry.exe)
     if not exe.is_file():
         return False
     icon = find_icon(Candidate(name=entry.name, exe=exe, icon_source=exe),
-                     paths.icons_dir() / f"{app.id}-{entry.id}", app.prefix_path)
+                     _icon_base(app, entry.id), app.prefix_path)
     if icon:
         entry.icon = icon
         log.info("icono de %s/%s: %s", app.id, entry.id, icon)
@@ -696,7 +726,7 @@ def register(app: App, candidates: list[Candidate]) -> list[Entry]:
             eid, n = f"{base}-{n}", n + 1
         used_ids.add(eid)
         existing.add(key)
-        icon = find_icon(cand, paths.icons_dir() / f"{app.id}-{eid}", app.prefix_path)
+        icon = find_icon(cand, _icon_base(app, eid), app.prefix_path)
         entry = Entry(id=eid, name=cand.name, exe=str(cand.exe), args=cand.args,
                       workdir=str(cand.workdir) if cand.workdir else None, icon=icon)
         entry.desktop = str(write_desktop(app, entry))

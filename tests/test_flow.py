@@ -248,7 +248,7 @@ def test_uninstall_from_menu_action(env, monkeypatch):
     monkeypatch.setattr(ui, "question", lambda *a, **k: True)
     assert runner.main(["--uninstall", app.id]) == 0
     assert not desktop.exists() and not app.prefix_path.exists() and config.all_apps() == []
-    assert not list(paths.icons_dir().glob(f"{app.id}-*"))
+    assert not list(paths.icons_dir().glob(f"{app.id}-*"))  # nada fuera del contenedor
 
     # ya desinstalada: aviso, sin traza
     assert runner.main(["--uninstall", app.id]) == 1
@@ -552,3 +552,28 @@ def test_refresh_also_finds_missing_icons(env, monkeypatch):
     assert cli.main(["refresh"]) == 0
     entry = next(e for e in config.load_app(app.id).entries if e.name == "Game Launcher")
     assert entry.icon == str(game / "GameIcon.ico")
+
+
+def test_icons_live_inside_the_container(env, monkeypatch):
+    from malive import shortcuts
+    monkeypatch.setattr(shortcuts, "extract_icon",
+                        lambda src, dest, index=0: (dest.parent.mkdir(parents=True, exist_ok=True),
+                                                    dest.with_suffix(".png").write_bytes(b"png"),
+                                                    str(dest.with_suffix(".png")))[2])
+    setup = copy_fixture(env, "TestApp-2.1.0-x64-setup.exe")
+    assert runner.main([str(setup)]) == 0
+    app = config.all_apps()[0]
+    entry = app.entries[0]
+    assert entry.icon == str(app.prefix_path / "drive_c" / "icons" / f"{entry.id}.png")
+    # Iconos de versiones anteriores se mudan a C:\icons al refrescar
+    legacy = paths.icons_dir() / f"{app.id}-{entry.id}.png"
+    legacy.parent.mkdir(parents=True, exist_ok=True)
+    legacy.write_bytes(b"old")
+    Path(entry.icon).unlink()
+    entry.icon = str(legacy)
+    app.save()
+    from malive import cli
+    assert cli.main(["refresh"]) == 0
+    entry = config.load_app(app.id).entries[0]
+    assert entry.icon == str(app.prefix_path / "drive_c" / "icons" / f"{entry.id}.png")
+    assert not legacy.exists() and Path(entry.icon).read_bytes() == b"old"

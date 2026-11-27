@@ -1,5 +1,11 @@
 # Cambios
 
+## 0.1.31
+- **Los iconos viven dentro del contenedor, en `C:\\icons`** (idea de Marcos):
+  al desinstalar un programa se borran con él y el contenedor queda
+  autosuficiente. Los de versiones anteriores (`~/.local/share/malive/icons`)
+  se mudan solos al actualizar.
+
 ## 0.1.30
 - `malive refresh` (y cada actualización) rehacía los accesos sin buscar los
   iconos que faltaban; solo se buscaban al cerrar el programa. Ahora también.
