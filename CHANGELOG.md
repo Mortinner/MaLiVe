@@ -1,5 +1,16 @@
 # Cambios
 
+## 0.1.15
+- **Discos de datos y NAS como unidades de Windows.** Con el aislamiento, los
+  programas solo veían C:, Documentos (D:) y Descargas (E:); un NAS o un
+  segundo disco no aparecían en sus diálogos de abrir y guardar. Ahora MaLiVe
+  da letra fija (M:, N:…) a los montajes de datos del equipo: NAS por
+  CIFS/NFS (también con autofs), otros discos y USB en `/run/media`. Todo lo
+  del sistema queda fuera. Las letras se recuerdan para que no cambien al
+  conectar otro disco. Se puede desactivar con `malive set host-drives off`.
+- Un fichero abierto desde uno de esos discos llega al programa por su unidad
+  fija (`N:\Multimedia\…`) en vez de como `Y:`.
+
 ## 0.1.14
 - **Complementos dentro de un programa.** Los instaladores de códecs,
   plugins o bibliotecas (LAV Filters, K-Lite, Visual C++, .NET, DirectX…) ya

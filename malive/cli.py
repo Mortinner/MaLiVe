@@ -154,6 +154,13 @@ def cmd_proton(a) -> int:
 
 def cmd_set(a) -> int:
     value = {"on": True, "off": False}[a.value]
+    if a.key == "host-drives":
+        cfg = config.load_global()
+        cfg["host_drives"] = value
+        config.save_global(cfg)
+        print(T(f"Discos de datos y carpetas de red como unidades de Windows: {a.value}",
+                f"Data disks and network folders as Windows drives: {a.value}"))
+        return 0
     if a.key == "auto-update":
         cfg = config.load_global()
         cfg["auto_update"] = value
@@ -375,7 +382,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.set_defaults(func=cmd_proton)
 
     s = sub.add_parser("set", help=T("cambiar opciones (global o de una app)", "change settings (global or per app)"))
-    s.add_argument("key", choices=["isolate", "auto-update"])
+    s.add_argument("key", choices=["isolate", "auto-update", "host-drives"])
     s.add_argument("value", choices=["on", "off"])
     s.add_argument("--app")
     s.set_defaults(func=cmd_set)

@@ -129,6 +129,11 @@ malive set auto-update off|on
   arranque si no existe, así que en vez de borrarla MaLiVe la apunta a una
   carpeta vacía. Se comparten Documentos (D:) y Descargas (E:), y la carpeta
   del instalador/portable como Y: si no está ya dentro de esas.
+  Los **discos de datos y carpetas de red** del equipo (un NAS por CIFS/NFS, un
+  segundo disco, un USB en `/run/media`) reciben letra fija, empezando por M:
+  y N:, que se recuerda aunque el disco no esté conectado. Se excluye todo lo
+  del sistema (raíz, `/boot`, `/var`, subvolúmenes del disco del sistema…).
+  Desactivar: `malive set host-drives off`.
   Desactivar: `malive set isolate off` (global) o `--app ID`.
 - **Fin de instalación:** se escanean los accesos al terminar el instalador y
   otra vez cuando ya no queda ningún proceso del prefijo (bootstrappers que se
@@ -147,6 +152,7 @@ malive winetricks APP dotnet48  componentes extra
 malive proton list|update|use
 malive update [--check]         actualizar MaLiVe
 malive set isolate on|off [--app APP]
+malive set host-drives on|off   discos de datos y NAS como unidades (M:, N:…)
 malive doctor                   comprobar dependencias e integración
 malive setup                    descargar GE-Proton y runtime y probar que Proton arranca
 malive integrate | unintegrate

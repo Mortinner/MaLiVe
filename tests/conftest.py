@@ -34,6 +34,9 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setenv("FAKE_PAYLOAD", str(FIX / "hello.exe"))
     monkeypatch.setenv("FAKE_LINGER", "1")
 
+    # Los montajes reales de la máquina de tests no deben colarse como unidades
+    from malive import mounts
+    monkeypatch.setattr(mounts, "data_mounts", lambda *a, **k: [])
     from malive import paths
     gp = paths.proton_dir() / "GE-Proton10-1"
     gp.mkdir(parents=True)

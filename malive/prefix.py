@@ -12,7 +12,7 @@ import subprocess
 import time
 from pathlib import Path
 
-from . import config, paths, proton, ui
+from . import config, mounts, paths, proton, ui
 from .config import App
 from .i18n import T
 
@@ -96,7 +96,8 @@ def apply_drives(app: App, cfg: dict, source_dir: Path | None = None) -> dict[st
         empty.mkdir(exist_ok=True)
         _set_link(z, empty)
         taken = set(drives(prefix))
-        letters = [c for c in "defghijklmnopqrstuvwx" if c not in taken]
+        saved = dict(cfg.get("drive_letters") or {})
+        letters = [c for c in "defghijklmnopqrtuvw" if c not in taken and c not in saved.values()]
         covered: list[Path] = [drive_c(prefix).resolve()]
         for folder in config.shared_folders(cfg):
             if not letters:
@@ -105,6 +106,23 @@ def apply_drives(app: App, cfg: dict, source_dir: Path | None = None) -> dict[st
             (dd / f"{letter}:").symlink_to(folder)
             new[letter] = str(folder)
             covered.append(folder.resolve())
+        # Discos de datos y carpetas de red del equipo (NAS, segundo disco, USB),
+        # con letra fija recordada en la configuración global
+        if cfg.get("host_drives", True):
+            found = mounts.data_mounts()
+            assigned, changed = mounts.assign_letters(found, saved, taken | set(new))
+            if changed:
+                cfg["drive_letters"] = saved
+                try:
+                    stored = config.load_global()
+                    stored["drive_letters"] = saved
+                    config.save_global(stored)
+                except OSError:
+                    log.warning("no se pudieron guardar las letras de las unidades")
+            for path, letter in assigned.items():
+                (dd / f"{letter}:").symlink_to(path)
+                new[letter] = path
+                covered.append(Path(path))
         if source_dir is not None:
             src = source_dir.resolve()
             if not any(src == c or c in src.parents for c in covered):

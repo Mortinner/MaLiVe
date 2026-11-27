@@ -127,6 +127,11 @@ malive set auto-update off|on
   it is missing, so instead of deleting it MaLiVe points it to an empty folder.
   Documents (D:) and Downloads (E:) are shared, plus the installer/portable
   folder as Y: when it is not already inside those.
+  The computer's **data disks and network folders** (a CIFS/NFS NAS, a second
+  disk, a USB stick in `/run/media`) get a fixed letter, starting with M: and
+  N:, remembered even while the disk is unplugged. Everything belonging to the
+  system (root, `/boot`, `/var`, subvolumes of the system disk…) is left out.
+  Disable with `malive set host-drives off`.
   Disable with `malive set isolate off` (global) or `--app ID`.
 - **End of installation:** shortcuts are scanned when the installer exits and
   again once no process is left in the prefix (bootstrappers that relaunch
@@ -146,6 +151,7 @@ malive winetricks APP dotnet48  extra components
 malive proton list|update|use
 malive update [--check]         update MaLiVe
 malive set isolate on|off [--app APP]
+malive set host-drives on|off   data disks and NAS as drives (M:, N:…)
 malive doctor                   check dependencies and integration
 malive setup                    download GE-Proton and runtime, test that Proton starts
 malive integrate | unintegrate
