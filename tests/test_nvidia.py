@@ -38,12 +38,14 @@ def gpu(monkeypatch):
     monkeypatch.setattr(nvidia, "download", fake_download)
 
 
-def test_off_by_default(env, gpu):
+def test_auto_on_with_gpu_and_global_off(env, gpu):
+    """Con tarjeta NVIDIA, todos los programas lo tienen sin configurar nada."""
     app = _app(env)
     assert runner.main(["--app", app.id, "--entry", app.entries[0].id]) == 0
-    call = env.calls()[-1]
-    assert "nvcuda" not in call["dlls"] and call["nvapi"] == ""
-    assert nvidia.installed() is None  # ni siquiera se descarga
+    assert "nvcuda=n" in env.calls()[-1]["dlls"]
+    assert cli.main(["set", "nvidia", "off"]) == 0
+    assert runner.main(["--app", app.id, "--entry", app.entries[0].id]) == 0
+    assert "nvcuda" not in env.calls()[-1]["dlls"]
 
 
 def test_on_links_dlls_and_sets_overrides(env, gpu):
@@ -87,9 +89,10 @@ def test_download_failure_does_not_block(env, monkeypatch):
     assert "nvcuda" not in env.calls()[-1]["dlls"]
 
 
-def test_global_default(env, gpu):
+def test_global_on_without_auto_detection(env, gpu):
     app = _app(env)
     assert cli.main(["set", "nvidia", "on"]) == 0
+    assert config.load_global()["nvidia_mode"] == "on"
     assert runner.main(["--app", app.id, "--entry", app.entries[0].id]) == 0
     assert "nvcuda=n" in env.calls()[-1]["dlls"]
 

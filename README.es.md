@@ -96,6 +96,25 @@ que haya algún programa de MaLiVe abierto, en cuyo caso pregunta por si es un
 complemento suyo. Para forzarlo: clic derecho → **Abrir con → MaLiVe:
 instalar dentro de un programa…**, o `malive-run --into APP fichero.exe`.
 
+## Tu equipo, para todos los programas
+
+Como en Windows, cualquier programa tiene acceso a todo el hardware y usa lo
+que necesita, sin configurar nada por programa. MaLiVe mira el equipo (al
+instalarse lo muestra en la última pantalla, y `malive hardware` lo enseña
+cuando quieras) y aplica la misma configuración a todos los entornos:
+
+- **Procesador y memoria:** todos los hilos y toda la RAM, bajo demanda.
+- **Gráfica:** Direct3D 9–12 se traduce a Vulkan (DXVK, VKD3D) en NVIDIA, AMD
+  e Intel.
+- **NVIDIA con driver propietario:** además CUDA, NVENC/NVDEC y OptiX
+  (nvidia-libs de SveSop, se descarga solo) y NVAPI (DLSS, Reflex).
+- **Portátiles con dos gráficas:** se usa la dedicada.
+- **Discos y NAS:** con letra fija (M:, N:…), ver más arriba.
+
+Con AMD o Intel, la codificación de vídeo por hardware dentro de programas de
+Windows (AMF, Quick Sync) no tiene todavía traducción en Wine: esos programas
+codifican por CPU.
+
 ## Actualizaciones automáticas
 
 Un temporizador de systemd de usuario (`malive-auto.timer`) busca cada 3 horas
@@ -153,8 +172,9 @@ malive proton list|update|use
 malive update [--check]         actualizar MaLiVe
 malive set isolate on|off [--app APP]
 malive set host-drives on|off   discos de datos y NAS como unidades (M:, N:…)
-malive nvidia [APP on|off|default]   CUDA/NVENC/OptiX de NVIDIA en una app (nvidia-libs)
-malive set nvidia on|off        activarlo por defecto para todas
+malive hardware                 el equipo y la configuración común a todos los programas
+malive set nvidia auto|on|off   CUDA/NVENC de NVIDIA para todos (auto: si hay tarjeta NVIDIA)
+malive nvidia [APP on|off|default]   excepción para un programa concreto
 malive dll APP [DLL=MODO…] [--remove DLL…]   DLL ajustadas (p. ej. sapi=d la desactiva)
 malive env APP [VAR=VALOR…] [--remove VAR…]  variables al lanzar (p. ej. PROTON_ENABLE_NVAPI=1)
 malive doctor                   comprobar dependencias e integración

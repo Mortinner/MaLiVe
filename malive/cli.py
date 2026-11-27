@@ -154,14 +154,16 @@ def cmd_proton(a) -> int:
 
 
 def cmd_set(a) -> int:
-    value = {"on": True, "off": False}[a.value]
     if a.key == "nvidia":
         cfg = config.load_global()
-        cfg["nvidia"] = value
+        cfg["nvidia_mode"] = a.value
         config.save_global(cfg)
-        print(T(f"Soporte NVIDIA (CUDA, NVENC) por defecto: {a.value} (las apps con valor propio no cambian)",
-                f"NVIDIA support (CUDA, NVENC) by default: {a.value} (apps with their own setting are not changed)"))
+        print(T(f"Soporte NVIDIA (CUDA, NVENC) para todos los programas: {a.value}",
+                f"NVIDIA support (CUDA, NVENC) for every program: {a.value}"))
         return 0
+    if a.value == "auto":
+        sys.exit(T("«auto» solo vale para nvidia; usa on u off.", "«auto» is only valid for nvidia; use on or off."))
+    value = {"on": True, "off": False}[a.value]
     if a.key == "host-drives":
         cfg = config.load_global()
         cfg["host_drives"] = value
@@ -287,7 +289,8 @@ def cmd_nvidia(a) -> int:
            if gpu else T("no detectada", "not detected")))
     libs = nvidia.installed()
     print("nvidia-libs: " + (libs.name if libs else T("sin descargar", "not downloaded")))
-    print(T(f"Por defecto: {'on' if cfg.get('nvidia') else 'off'}", f"Default: {'on' if cfg.get('nvidia') else 'off'}"))
+    mode = cfg.get("nvidia_mode", "auto")
+    print(T(f"Para todos los programas: {mode}", f"For every program: {mode}"))
     for app in config.all_apps():
         own = "" if app.nvidia is None else T(" (propio)", " (own)")
         print(f"  {app.id}: {'on' if app.effective_nvidia(cfg) else 'off'}{own}")
@@ -299,6 +302,18 @@ def _progress_printer():
         if total:
             print(f"\r  {done * 100 // total:3d}%  {_human(done)} / {_human(total)}", end="", flush=True)
     return progress
+
+
+def cmd_hardware(a) -> int:
+    """El equipo y la configuración que MaLiVe aplica a todos los programas."""
+    from . import hardware
+    hw = hardware.detect()
+    for line in hardware.summary(hw):
+        print(line)
+    env = hardware.profile_env(hw)
+    if env and not a.short:
+        print(T("Variables comunes: ", "Common variables: ") + " ".join(f"{k}={v}" for k, v in env.items()))
+    return 0
 
 
 def cmd_winetricks(a) -> int:
@@ -332,6 +347,21 @@ def cmd_setup(a) -> int:
             print(f"\n  Error: {e}", file=sys.stderr)
             return 1
         print(T(f"\n  {name} listo.", f"\n  {name} ready."))
+
+    # Configuración única según el equipo (la misma para todos los programas)
+    from . import hardware, nvidia
+    hw = hardware.detect()
+    for line in hardware.summary(hw):
+        print(f"» {line}")
+    cfg = config.load_global()
+    if hw.nvidia is not None and cfg.get("nvidia_mode", "auto") != "off" and nvidia.installed() is None:
+        print(T("» Descargando el soporte de NVIDIA (CUDA, NVENC)…", "» Downloading NVIDIA support (CUDA, NVENC)…"))
+        try:
+            nvidia.download(progress)
+            print()
+        except nvidia.NvidiaError as e:
+            # No es grave: se reintenta al abrir el primer programa
+            print(f"\n  {T('Aviso', 'Warning')}: {e}", file=sys.stderr)
 
     print(T("  Preparando el runtime de Steam y comprobando que Proton funciona (unos minutos la primera vez)…",
             "  Preparing the Steam runtime and checking that Proton works (a few minutes the first time)…"))
@@ -397,6 +427,13 @@ def cmd_auto(a) -> int:
             proton.cleanup(cfg.get("proton_keep_unused", 1))
         except proton.ProtonError as e:
             runner.log.warning("actualización de GE-Proton: %s", e)
+    # nvidia-libs: misma cadencia semanal, solo si hay tarjeta NVIDIA
+    from . import nvidia
+    if old and cfg.get("nvidia_mode", "auto") != "off" and nvidia.gpu_present():
+        try:
+            nvidia.download()
+        except nvidia.NvidiaError as e:
+            runner.log.warning("actualización de nvidia-libs: %s", e)
     return 0
 
 
@@ -488,7 +525,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("set", help=T("cambiar opciones (global o de una app)", "change settings (global or per app)"))
     s.add_argument("key", choices=["isolate", "auto-update", "host-drives", "nvidia"])
-    s.add_argument("value", choices=["on", "off"])
+    s.add_argument("value", choices=["on", "off", "auto"])
     s.add_argument("--app")
     s.set_defaults(func=cmd_set)
 
@@ -498,6 +535,11 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("program")
     s.add_argument("args", nargs=argparse.REMAINDER)
     s.set_defaults(func=cmd_exec)
+
+    s = sub.add_parser("hardware", help=T("ver el equipo y la configuración común a todos los programas",
+                                          "show the computer and the configuration shared by every program"))
+    s.add_argument("--short", action="store_true")
+    s.set_defaults(func=cmd_hardware)
 
     s = sub.add_parser("nvidia", help=T("CUDA/NVENC de NVIDIA para una app: malive nvidia [APP on|off|default] | update",
                                         "NVIDIA CUDA/NVENC for an app: malive nvidia [APP on|off|default] | update"))

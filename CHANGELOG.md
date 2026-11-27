@@ -1,5 +1,22 @@
 # Cambios
 
+## 0.1.19
+- **Una configuración única para todo el equipo.** MaLiVe detecta el
+  procesador, la memoria y las gráficas (fabricante, driver, si hay dos) y
+  aplica lo mismo a todos los programas, como en Windows: nada por programa.
+  - NVIDIA con driver propietario: CUDA, NVENC/NVDEC, OptiX y NVAPI para
+    todos, automáticamente (antes había que activarlo por app).
+  - Equipos con dos gráficas: se usa la dedicada (PRIME de NVIDIA o
+    `DRI_PRIME` en AMD).
+  - Se detecta en cada lanzamiento: si cambias de tarjeta, se adapta solo.
+- El instalador muestra al final el equipo detectado, y `malive hardware` lo
+  enseña cuando quieras. `malive setup` deja descargado nvidia-libs si hay
+  tarjeta NVIDIA; el temporizador lo actualiza cada semana.
+- `malive set nvidia auto|on|off` (por defecto `auto`). `malive nvidia APP off`
+  queda solo como excepción para un programa concreto.
+- La configuración guarda solo lo que cambias, para que las mejoras de los
+  valores por defecto lleguen también a quien ya tenía MaLiVe.
+
 ## 0.1.18
 - **NVIDIA: CUDA, NVENC/NVDEC y OptiX dentro de Proton** (experimental).
   Proton no trae los puentes que dan a los programas de Windows acceso a CUDA

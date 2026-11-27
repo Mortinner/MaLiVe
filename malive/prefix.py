@@ -12,7 +12,7 @@ import subprocess
 import time
 from pathlib import Path
 
-from . import config, mounts, nvidia, paths, proton, quirks, ui
+from . import config, hardware, mounts, nvidia, paths, proton, quirks, ui
 from .config import App
 from .i18n import T
 
@@ -412,6 +412,13 @@ def run_umu(app: App, cfg: dict, argv: list[str], cwd: Path | None = None,
         # a que se cerrase; "run" lanza en paralelo con el mismo wineserver.
         verb = "run" if is_busy(app.prefix_path) else "waitforexitandrun"
     env = build_env(app, cfg, verb)
+    # Configuración única según el equipo, igual para todos los programas;
+    # lo que el usuario ya traiga en su entorno manda.
+    try:
+        for key, value in hardware.profile_env(hardware.detect(with_names=False)).items():
+            env.setdefault(key, value)
+    except OSError as e:
+        log.warning("detección de hardware: %s", e)
     extra = setup_nvidia(app, cfg, env)
     apply_app_settings(env, app, argv[0] if argv else "", extra)
     if install_path is not None:

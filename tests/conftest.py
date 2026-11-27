@@ -37,6 +37,16 @@ def env(tmp_path, monkeypatch):
     # Los montajes reales de la máquina de tests no deben colarse como unidades
     from malive import mounts
     monkeypatch.setattr(mounts, "data_mounts", lambda *a, **k: [])
+    # Ni su hardware (gráficas, driver de NVIDIA)
+    from malive import hardware, nvidia
+    empty = tmp_path / "nohw"
+    (empty / "sys").mkdir(parents=True)
+    (empty / "proc").mkdir(parents=True)
+    real_detect = hardware.detect
+    monkeypatch.setattr(hardware, "detect",
+                        lambda sys_root=empty / "sys", proc_root=empty / "proc", with_names=False:
+                        real_detect(sys_root, proc_root, with_names))
+    monkeypatch.setattr(nvidia, "gpu_present", lambda: False)
     from malive import paths
     gp = paths.proton_dir() / "GE-Proton10-1"
     gp.mkdir(parents=True)

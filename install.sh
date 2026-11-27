@@ -610,6 +610,12 @@ $(T "Si no se pudo descargar algún paquete, actualiza el sistema (sudo pacman -
   fi
 done
 PASSWORD=""
+# Lo que MaLiVe ha detectado y usará para todos los programas
+HW_INFO="$("$BIN/malive" hardware --short 2>/dev/null | sed 's/^/  • /')"
+[ -n "$HW_INFO" ] && HW_INFO="
+
+$(T "Tu equipo (todos los programas lo usarán):" "Your computer (every program will use it):")
+$HW_INFO"
 draw_progress 0 "$(T "Terminado." "Done.")"
 sleep 0.6
 
@@ -629,13 +635,13 @@ elif [ -n "$INSTALLED" ] && [ "$INSTALLED" != "$VERSION" ]; then
 Tus programas siguen en el menú de aplicaciones. Ya puedes borrar la carpeta del instalador." \
 "MaLiVe has been updated to version ${VERSION}.
 
-Your programs are still in the app menu. You can now delete the installer folder.")" "$FINISH"
+Your programs are still in the app menu. You can now delete the installer folder.")${HW_INFO}" "$FINISH"
 else
   dialog "$(T "Instalación terminada" "Setup complete")" "$(T "MaLiVe se ha instalado correctamente.
 
 Para usarlo, haz doble clic en cualquier archivo .exe o .msi desde tu gestor de archivos. Los programas que instales aparecerán en el menú de aplicaciones." \
 "MaLiVe has been installed successfully.
 
-To use it, double-click any .exe or .msi file in your file manager. The programs you install will appear in your app menu.")" "$FINISH"
+To use it, double-click any .exe or .msi file in your file manager. The programs you install will appear in your app menu.")${HW_INFO}" "$FINISH"
 fi
 exit 0

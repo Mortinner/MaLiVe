@@ -94,6 +94,24 @@ a MaLiVe program is open, in which case it asks in case it is an add-on for
 it. To force it: right-click → **Open with → MaLiVe: install into a
 program…**, or `malive-run --into APP file.exe`.
 
+## Your computer, for every program
+
+As on Windows, any program has access to all the hardware and uses what it
+needs, with no per-program setup. MaLiVe looks at the computer (the installer
+shows it on its last screen, and `malive hardware` shows it any time) and
+applies the same configuration to every environment:
+
+- **Processor and memory:** every thread and all the RAM, on demand.
+- **Graphics:** Direct3D 9–12 is translated to Vulkan (DXVK, VKD3D) on NVIDIA,
+  AMD and Intel.
+- **NVIDIA with the proprietary driver:** also CUDA, NVENC/NVDEC and OptiX
+  (SveSop's nvidia-libs, downloaded automatically) and NVAPI (DLSS, Reflex).
+- **Laptops with two GPUs:** the dedicated one is used.
+- **Disks and NAS:** with a fixed letter (M:, N:…), see above.
+
+With AMD or Intel, hardware video encoding inside Windows programs (AMF,
+Quick Sync) has no Wine translation yet: those programs encode on the CPU.
+
 ## Automatic updates
 
 A systemd user timer (`malive-auto.timer`) checks the
@@ -152,8 +170,9 @@ malive proton list|update|use
 malive update [--check]         update MaLiVe
 malive set isolate on|off [--app APP]
 malive set host-drives on|off   data disks and NAS as drives (M:, N:…)
-malive nvidia [APP on|off|default]   NVIDIA CUDA/NVENC/OptiX for an app (nvidia-libs)
-malive set nvidia on|off        enable it by default for every app
+malive hardware                 the computer and the configuration shared by every program
+malive set nvidia auto|on|off   NVIDIA CUDA/NVENC for every program (auto: if there is an NVIDIA card)
+malive nvidia [APP on|off|default]   exception for one specific program
 malive dll APP [DLL=MODE…] [--remove DLL…]   DLL overrides (e.g. sapi=d disables it)
 malive env APP [VAR=VALUE…] [--remove VAR…]  launch variables (e.g. PROTON_ENABLE_NVAPI=1)
 malive doctor                   check dependencies and integration

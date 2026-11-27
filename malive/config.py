@@ -28,9 +28,9 @@ DEFAULTS = {
     # GE-Proton descargados que se conservan aunque ninguna app los use.
     "proton_keep_unused": 1,
     "gameid": "umu-default",
-    # CUDA/NVENC/OptiX para los programas (nvidia-libs de SveSop) si hay tarjeta NVIDIA.
-    # Desactivado por defecto mientras se prueba; por app: malive nvidia APP on.
-    "nvidia": False,
+    # CUDA/NVENC/OptiX (nvidia-libs de SveSop) para todos los programas:
+    # auto = si hay una tarjeta NVIDIA con su driver propietario; on; off.
+    "nvidia_mode": "auto",
 }
 
 
@@ -55,7 +55,11 @@ def load_global() -> dict:
 
 
 def save_global(cfg: dict) -> None:
-    _write_json_atomic(paths.config_file(), cfg)
+    # Solo lo que difiere de los valores por defecto: así, si un valor por
+    # defecto cambia en una versión nueva, llega también a quien ya tenía MaLiVe.
+    data = {k: v for k, v in cfg.items() if k not in DEFAULTS or DEFAULTS[k] != v}
+    data.pop("nvidia", None)  # clave de la 0.1.18, sustituida por nvidia_mode
+    _write_json_atomic(paths.config_file(), data)
 
 
 def xdg_user_dir(name: str) -> Path | None:
@@ -126,7 +130,13 @@ class App:
         return next((e for e in self.entries if e.id == entry_id), None)
 
     def effective_nvidia(self, cfg: dict) -> bool:
-        return bool(cfg.get("nvidia", False)) if self.nvidia is None else self.nvidia
+        if self.nvidia is not None:
+            return self.nvidia
+        mode = cfg.get("nvidia_mode", "auto")
+        if mode == "auto":
+            from . import nvidia
+            return nvidia.gpu_present()
+        return mode == "on"
 
     def effective_isolate(self, cfg: dict) -> bool:
         return cfg.get("isolate", True) if self.isolate is None else self.isolate
