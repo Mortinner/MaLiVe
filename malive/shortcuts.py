@@ -95,7 +95,35 @@ def take_lnk_snapshot(prefix: Path) -> Snapshot:
                         snap.lnks[full] = os.lstat(full).st_mtime
                     except OSError:
                         pass
+    for full in _program_dir_lnks(prefix):
+        try:
+            snap.lnks[full] = os.lstat(full).st_mtime
+        except OSError:
+            pass
     return snap
+
+
+_SYSTEM_TOP = {"windows", "users", "programdata", "program files", "program files (x86)"}
+
+
+def _program_dir_lnks(prefix: Path) -> list[str]:
+    """Accesos que algunos instaladores dejan en la carpeta del programa en vez
+    de en el menú Inicio (el .msi de Armored Warfare: C:\\Games\\Armored Warfare.lnk).
+    Solo dos niveles bajo C:\\ y Program Files, para que vigilar sea barato."""
+    c = pfx.drive_c(prefix)
+    roots = [(c, True), (c / "Program Files", False), (c / "Program Files (x86)", False)]
+    out: list[str] = []
+    for root, is_c in roots:
+        try:
+            children = [d for d in root.iterdir() if d.is_dir() and not d.is_symlink()]
+        except OSError:
+            continue
+        for child in children:
+            if is_c and child.name.lower() in _SYSTEM_TOP:
+                continue
+            for pattern in ("*.lnk", "*/*.lnk"):
+                out.extend(str(p) for p in child.glob(pattern) if p.is_file())
+    return out
 
 
 @dataclass

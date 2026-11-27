@@ -107,6 +107,11 @@ if exe.name == "aw_launcher.exe":
     sm = c / "users/steamuser/AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Game"
     sm.mkdir(parents=True, exist_ok=True)
     pylnk3.for_file(r"C:\Program Files\Game\game.exe", str(sm / "Game.lnk"), work_dir=r"C:\Program Files\Game")
+    # Como el .msi de Armored Warfare: un acceso en la carpeta del programa
+    games = c / "Games"
+    games.mkdir(exist_ok=True)
+    shutil.copy(payload, games / "Launcher.exe")
+    pylnk3.for_file(r"C:\Games\Launcher.exe", str(games / "Game Launcher.lnk"), work_dir=r"C:\Games")
     sys.exit(0)
 
 sys.exit(int(os.environ.get("FAKE_RC", "0")))

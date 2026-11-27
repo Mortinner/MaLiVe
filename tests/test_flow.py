@@ -439,12 +439,12 @@ def test_web_installer_detected_as_app_still_gets_menu_entries(env):
     assert runner.main([str(launcher)]) == 0
     apps = config.all_apps()
     assert len(apps) == 1 and apps[0].kind == "portable"
-    names = [e.name for e in apps[0].entries]
-    assert names == ["Game"]
+    names = sorted(e.name for e in apps[0].entries)
+    assert names == ["Game", "Game Launcher"]
     assert Path(apps[0].entries[0].desktop).is_file()
     # Volver a ejecutar el lanzador reutiliza el mismo contenedor
     assert runner.main([str(launcher)]) == 0
-    assert len(config.all_apps()) == 1 and len(config.load_app(apps[0].id).entries) == 1
+    assert len(config.all_apps()) == 1 and len(config.load_app(apps[0].id).entries) == 2
 
 
 def test_desktop_defaults_and_no_stray_drives(env):

@@ -1,5 +1,11 @@
 # Cambios
 
+## 0.1.26
+- Accesos que el instalador deja en la carpeta del programa en vez de en el
+  menú Inicio (el .msi de Armored Warfare crea `C:\\Games\\Armored
+  Warfare.lnk`): ahora también se vigilan (dos niveles bajo `C:\\` y
+  `Program Files`) y llegan al menú.
+
 ## 0.1.25
 - **Lanzadores que no respondían a los clics** (Armored Warfare, hecho con
   CEF): GE-Proton activa Xalia, una capa para manejar lanzadores con mando
