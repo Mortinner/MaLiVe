@@ -531,3 +531,24 @@ def test_icon_from_uninstall_registry_and_leveldb(env, monkeypatch):
     ldb.mkdir(parents=True)
     (ldb / "000005.ldb").write_bytes(b"\x00\x01installPath\x00M:\\\\Games\\\\B\x00\xff")
     assert b / "b.ico" in shortcuts.icons_from_app_data(app.prefix_path)
+
+
+def test_refresh_also_finds_missing_icons(env, monkeypatch):
+    from malive import cli, mounts, shortcuts
+    data = env.tmp / "DataLinux"
+    game = data / "Games" / "G"
+    game.mkdir(parents=True)
+    (game / "GameIcon.ico").write_bytes(b"\x00\x00\x01\x00")
+    monkeypatch.setattr(mounts, "data_mounts", lambda *a, **k: [data])
+    monkeypatch.setattr(shortcuts, "extract_icon",
+                        lambda src, dest, index=0: str(src) if Path(src).suffix == ".ico" else None)
+    launcher = env.downloads / "aw_launcher.exe"
+    shutil.copy(FIX / "hello.exe", launcher)
+    assert runner.main([str(launcher)]) == 0
+    app = config.all_apps()[0]
+    ldb = app.prefix_path / "drive_c/users/steamuser/AppData/Local/L/Default/Local Storage/leveldb"
+    ldb.mkdir(parents=True)
+    (ldb / "000003.log").write_bytes(b"\x01installPath\x00M:\\\\Games\\\\G\x00")
+    assert cli.main(["refresh"]) == 0
+    entry = next(e for e in config.load_app(app.id).entries if e.name == "Game Launcher")
+    assert entry.icon == str(game / "GameIcon.ico")

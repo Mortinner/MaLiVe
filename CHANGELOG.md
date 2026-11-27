@@ -1,5 +1,9 @@
 # Cambios
 
+## 0.1.30
+- `malive refresh` (y cada actualización) rehacía los accesos sin buscar los
+  iconos que faltaban; solo se buscaban al cerrar el programa. Ahora también.
+
 ## 0.1.29
 - Más fuentes para encontrar el icono y la carpeta de instalación, por orden
   de fiabilidad y todas genéricas:

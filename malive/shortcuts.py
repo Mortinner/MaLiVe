@@ -510,6 +510,23 @@ def write_desktop(app: App, entry: Entry) -> Path:
     return path
 
 
+def retry_icon(app: App, entry: Entry) -> bool:
+    """Si la entrada no tiene icono, lo busca otra vez (el programa puede haberlo
+    dejado después: lanzadores que descargan el juego). Devuelve si lo encontró."""
+    if entry.icon and Path(entry.icon).exists():
+        return False
+    exe = Path(entry.exe)
+    if not exe.is_file():
+        return False
+    icon = find_icon(Candidate(name=entry.name, exe=exe, icon_source=exe),
+                     paths.icons_dir() / f"{app.id}-{entry.id}", app.prefix_path)
+    if icon:
+        entry.icon = icon
+        log.info("icono de %s/%s: %s", app.id, entry.id, icon)
+        return True
+    return False
+
+
 def rewrite_app(app: App) -> bool:
     """Reescribe los .desktop de una app si su contenido ha cambiado (p. ej.
     asociaciones que el instalador registró al final). Devuelve si cambió algo."""
@@ -518,13 +535,8 @@ def rewrite_app(app: App) -> bool:
     for entry in app.entries:
         if not entry.desktop or not Path(entry.desktop).exists():
             continue
-        if not entry.icon or not Path(entry.icon).exists():
-            exe = Path(entry.exe)
-            icon = find_icon(Candidate(name=entry.name, exe=exe, icon_source=exe),
-                             paths.icons_dir() / f"{app.id}-{entry.id}", app.prefix_path) if exe.is_file() else None
-            if icon:
-                entry.icon = icon
-                icons_fixed = True
+        if retry_icon(app, entry):
+            icons_fixed = True
         new = desktop_text(app, entry)
         try:
             old = Path(entry.desktop).read_text(encoding="utf-8")
@@ -546,6 +558,7 @@ def rewrite_all() -> int:
         for entry in app.entries:
             if entry.desktop and not Path(entry.desktop).exists():
                 continue  # el usuario lo quitó a mano: respetarlo
+            retry_icon(app, entry)
             entry.desktop = str(write_desktop(app, entry))
             changed = True
             n += 1
