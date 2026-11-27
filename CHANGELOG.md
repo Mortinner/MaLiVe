@@ -1,5 +1,17 @@
 # Cambios
 
+## 0.1.13
+- **Ficheros en un NAS o en otro disco.** Al abrir un fichero que está fuera
+  de la carpeta personal (un NAS montado en `/mnt`, un disco en
+  `/run/media`…), el programa recibía su ruta (`Y:\…`) pero no podía leerlo:
+  el contenedor en el que corre Proton no veía esa carpeta. Ahora MaLiVe se
+  la expone (`PRESSURE_VESSEL_FILESYSTEMS_RW`).
+- **Sección del menú según el programa.** Ya no va todo a Utilidades: los
+  reproductores de vídeo o audio van a Multimedia, los visores de imágenes a
+  Gráficos, los compresores a Utilidades › Archivado y los editores de texto a
+  Utilidades › Editor de texto, según los tipos de fichero que abre cada
+  programa. Los accesos existentes se recolocan al actualizar.
+
 ## 0.1.12
 - **«Abrir con».** Los programas instalados con MaLiVe aceptan ficheros: salen
   en «Abrir con» del gestor de archivos y se les puede arrastrar un fichero al

@@ -424,3 +424,8 @@ def test_installed_app_gets_mimetype_and_opens_files(env):
     assert runner.main(["--app", app.id, "--entry", entry.id, str(other / "otra.txt")]) == 0
     last = env.calls()[-1]
     assert last["argv"] == [entry.exe, "Y:\\otra.txt"] and last["drives"]["y:"] == str(other)
+    # …y esa carpeta (fuera de $HOME, p. ej. un NAS) se expone al contenedor de Proton
+    assert str(other.resolve()) in last["pv_rw"].split(":")
+    # Las carpetas de dentro de $HOME no hace falta exponerlas
+    assert runner.main(["--app", app.id, "--entry", entry.id, str(doc)]) == 0
+    assert env.calls()[-1]["pv_rw"] == ""

@@ -323,6 +323,27 @@ def _safe_tick(on_tick) -> None:
         log.exception("error en la vigilancia periódica")
 
 
+def container_paths(prefix: Path) -> list[str]:
+    """Carpetas de las unidades compartidas que están fuera de $HOME (un NAS en
+    /mnt, un disco en /run/media, kio-fuse…). El contenedor de Proton
+    (pressure-vessel) no ve cualquier ruta del sistema: sin esto el programa recibe
+    «Y:\\vídeo.mkv» pero no puede abrirlo."""
+    state = prefix / STATE_FILE
+    try:
+        targets = json.loads(state.read_text()).values() if state.is_file() else []
+    except (OSError, json.JSONDecodeError, AttributeError):
+        return []
+    home = Path.home().resolve()
+    out: list[str] = []
+    for t in targets:
+        p = Path(t).resolve()
+        if p == home or home in p.parents or ":" in str(p):
+            continue
+        if str(p) not in out:
+            out.append(str(p))
+    return out
+
+
 def run_umu(app: App, cfg: dict, argv: list[str], cwd: Path | None = None,
             verb: str | None = None, log_mode: str = "a",
             install_path: Path | None = None,
@@ -341,6 +362,10 @@ def run_umu(app: App, cfg: dict, argv: list[str], cwd: Path | None = None,
     env = build_env(app, cfg, verb)
     if install_path is not None:
         env["STEAM_COMPAT_INSTALL_PATH"] = str(install_path)
+    extra = container_paths(app.prefix_path)
+    if extra:
+        prev = env.get("PRESSURE_VESSEL_FILESYSTEMS_RW", "")
+        env["PRESSURE_VESSEL_FILESYSTEMS_RW"] = ":".join([p for p in prev.split(":") if p] + extra)
     log = log_path(app)
     start = time.monotonic()
     with log.open(log_mode, encoding="utf-8", errors="replace") as lf:

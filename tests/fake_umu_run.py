@@ -40,6 +40,7 @@ with open(os.environ["FAKE_UMU_LOG"], "a") as f:
     f.write(json.dumps({
         "argv": args, "verb": os.environ.get("PROTON_VERB"), "cwd": os.getcwd(),
         "protonpath": os.environ["PROTONPATH"],
+        "pv_rw": os.environ.get("PRESSURE_VESSEL_FILESYSTEMS_RW", ""),
         "drives": {e.name: os.readlink(e) for e in dd.iterdir() if e.is_symlink()},
     }) + "\n")
 
