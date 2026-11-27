@@ -1,5 +1,15 @@
 # Cambios
 
+## 0.1.28
+- **Icono de lanzadores que instalan el juego donde dice el usuario.** El .exe
+  del lanzador de Armored Warfare no trae icono; el juego deja `GameIcon.ico`
+  en la carpeta elegida (`M:\\Games\\…`) y el lanzador anota esa ruta en sus
+  registros. Si un acceso no tiene icono, MaLiVe lee los ficheros de texto que
+  el programa escribe en su AppData (registros, configuración), saca las rutas
+  de Windows, las traduce y busca `.ico` en ellas. Genérico: vale para
+  cualquier lanzador que haga lo mismo. Se reintenta al cerrar el programa.
+  (Pista de Marcos.)
+
 ## 0.1.27
 - **Juegos en la sección Juegos del menú.** Si un programa no abre tipos de
   fichero y tiene pistas de juego (instalado en una carpeta «Games»,

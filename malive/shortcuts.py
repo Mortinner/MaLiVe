@@ -227,7 +227,76 @@ def _png_size(name: str) -> int:
     return int(m.group(1)) * 100 + int(m.group(3)) if m else 0
 
 
-def find_icon(cand: "Candidate", dest_base: Path) -> str | None:
+_TEXT_SUFFIXES = {".log", ".bak", ".json", ".ini", ".cfg", ".conf", ".xml", ".txt", ".yaml", ".yml"}
+_WIN_PATH = re.compile(r'([A-Za-z]:\\{1,2}[^"\'\r\n<>|*?\x00-\x1f]{1,260})')
+
+
+def icons_from_app_data(prefix: Path, max_files: int = 60) -> list[Path]:
+    """Iconos de las carpetas que el propio programa anota en su AppData.
+
+    Muchos lanzadores instalan el juego donde dice el usuario (M:\\Games\\…) y
+    dejan allí el icono (GameIcon.ico), mientras su .exe no trae ninguno; la
+    ruta la escriben en sus registros o su configuración. Se leen esos ficheros
+    de texto (los más recientes, con tope de tamaño), se sacan las rutas de
+    Windows, se traducen a Linux y se buscan .ico en ellas."""
+    appdata = pfx.drive_c(prefix) / "users" / "steamuser" / "AppData"
+    files: list[Path] = []
+    for root in (appdata / "Local", appdata / "Roaming"):
+        if not root.is_dir():
+            continue
+        for dirpath, dirs, names in os.walk(root):
+            if dirpath[len(str(root)):].count(os.sep) >= 4:
+                dirs[:] = []
+            dirs[:] = [d for d in dirs if d.lower() not in ("cache", "code cache", "gpucache", "microsoft", "temp")]
+            for n in names:
+                fp = Path(dirpath) / n
+                if fp.suffix.lower() in _TEXT_SUFFIXES or ".log" in n.lower():
+                    try:
+                        if fp.stat().st_size < 8 * 1024 * 1024:
+                            files.append(fp)
+                    except OSError:
+                        pass
+    files.sort(key=lambda f: f.stat().st_mtime if f.exists() else 0, reverse=True)
+    c = pfx.drive_c(prefix).resolve()
+    found_icos: dict[str, Path] = {}
+    seen_dirs: set[str] = set()
+    for f in files[:max_files]:
+        try:
+            text = f.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        for m in _WIN_PATH.finditer(text):
+            win = m.group(1).replace("\\\\", "\\").rstrip(" .,;:'\\")
+            unix = pfx.windows_to_unix(prefix, win)
+            if unix is None:
+                continue
+            if unix.suffix.lower() == ".ico" and unix.is_file():
+                found_icos.setdefault(str(unix), unix)
+                continue
+            key = str(unix)
+            if key in seen_dirs or len(seen_dirs) > 300:
+                continue
+            seen_dirs.add(key)
+            try:
+                real = unix.resolve()
+                if c in real.parents and any(p.name.lower() in ("windows", "users") for p in real.relative_to(c).parents if p.name):
+                    continue
+                if unix.is_dir():
+                    for ico in unix.glob("*.ico"):
+                        found_icos.setdefault(str(ico), ico)
+            except (OSError, ValueError):
+                continue
+    def score(p: Path) -> tuple:
+        n = p.name.lower()
+        try:
+            size = p.stat().st_size
+        except OSError:
+            size = 0
+        return ("game" in n or "icon" in n or "app" in n, size)
+    return sorted(found_icos.values(), key=score, reverse=True)
+
+
+def find_icon(cand: "Candidate", dest_base: Path, prefix: Path | None = None) -> str | None:
     """El icono del acceso; si no se puede sacar (p. ej. los .msi apuntan a un
     fichero en C:\\windows\\Installer que a veces no está o no trae iconos),
     el del propio .exe y, si no, un .ico de su carpeta."""
@@ -243,7 +312,16 @@ def find_icon(cand: "Candidate", dest_base: Path) -> str | None:
         icos = sorted(cand.exe.parent.glob("*.ico"))
     except OSError:
         icos = []
-    return extract_icon(icos[0], dest_base) if icos else None
+    if icos:
+        icon = extract_icon(icos[0], dest_base)
+        if icon:
+            return icon
+    if prefix is not None:
+        for ico in icons_from_app_data(prefix)[:5]:
+            icon = extract_icon(ico, dest_base)
+            if icon:
+                return icon
+    return None
 
 
 def extract_icon(source: Path, dest_base: Path, index: int = 0) -> str | None:
@@ -400,7 +478,7 @@ def rewrite_app(app: App) -> bool:
         if not entry.icon or not Path(entry.icon).exists():
             exe = Path(entry.exe)
             icon = find_icon(Candidate(name=entry.name, exe=exe, icon_source=exe),
-                             paths.icons_dir() / f"{app.id}-{entry.id}") if exe.is_file() else None
+                             paths.icons_dir() / f"{app.id}-{entry.id}", app.prefix_path) if exe.is_file() else None
             if icon:
                 entry.icon = icon
                 icons_fixed = True
@@ -562,7 +640,7 @@ def register(app: App, candidates: list[Candidate]) -> list[Entry]:
             eid, n = f"{base}-{n}", n + 1
         used_ids.add(eid)
         existing.add(key)
-        icon = find_icon(cand, paths.icons_dir() / f"{app.id}-{eid}")
+        icon = find_icon(cand, paths.icons_dir() / f"{app.id}-{eid}", app.prefix_path)
         entry = Entry(id=eid, name=cand.name, exe=str(cand.exe), args=cand.args,
                       workdir=str(cand.workdir) if cand.workdir else None, icon=icon)
         entry.desktop = str(write_desktop(app, entry))

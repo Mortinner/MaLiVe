@@ -477,3 +477,31 @@ def test_looks_like_game(tmp_path):
     assert looks_like_game(exe)
     assert looks_like_game(tmp_path / "drive_c/Games/Launcher.exe")
     assert looks_like_game(tmp_path / "x/MyGame-Win64-Shipping.exe")
+
+
+def test_icon_found_through_paths_in_app_logs(env, monkeypatch):
+    """El .exe del lanzador no trae icono; el juego (y su GameIcon.ico) está
+    donde eligió el usuario, y el lanzador lo anota en su registro."""
+    from malive import mounts, shortcuts
+    data = env.tmp / "DataLinux"
+    game = data / "Games" / "Armored Warfare MALIVE"
+    game.mkdir(parents=True)
+    (game / "GameIcon.ico").write_bytes(b"\x00\x00\x01\x00" + b"\x00" * 60)
+    monkeypatch.setattr(mounts, "data_mounts", lambda *a, **k: [data])
+    monkeypatch.setattr(shortcuts, "extract_icon",
+                        lambda src, dest, index=0: str(src) if Path(src).suffix == ".ico" else None)
+    launcher = env.downloads / "aw_launcher.exe"
+    shutil.copy(FIX / "hello.exe", launcher)
+    assert runner.main([str(launcher)]) == 0
+    app = config.all_apps()[0]
+    entry = next(e for e in app.entries if e.name == "Game Launcher")
+    assert entry.icon is None  # todavía no hay juego descargado
+    # El lanzador descarga el juego en M: y lo anota en su log (JSON escapado)
+    logs = app.prefix_path / "drive_c/users/steamuser/AppData/Local/Launcher/Logs"
+    logs.mkdir(parents=True)
+    (logs / "app.log").write_text('return value \'{"APP":"M:\\\\Games\\\\Armored Warfare MALIVE","success":true}\'\n')
+    # El siguiente arranque reintenta los iconos que faltan
+    assert runner.main(["--app", app.id, "--entry", entry.id]) == 0
+    entry = next(e for e in config.load_app(app.id).entries if e.name == "Game Launcher")
+    assert entry.icon == str(game / "GameIcon.ico")
+    assert f"Icon={entry.icon}" in Path(entry.desktop).read_text()

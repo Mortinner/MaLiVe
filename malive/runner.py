@@ -102,6 +102,14 @@ def launch(app: App, exe: Path, args: list[str], workdir: Path | None = None,
     except OSError:
         pass
     rc, secs = pfx.run_umu(app, cfg, argv, cwd=workdir or exe.parent, install_path=exe.parent, on_tick=on_tick)
+    # Accesos sin icono: el programa puede haberlo dejado ahora (lanzadores que
+    # instalan el juego y su GameIcon.ico donde dice el usuario)
+    if any(not e.icon or not Path(e.icon).exists() for e in app.entries):
+        try:
+            if shortcuts.rewrite_app(app):
+                shortcuts.refresh_menus()
+        except OSError as e:
+            log.warning("reintento de iconos de %s: %s", app.id, e)
     if rc != 0 and secs < QUICK_FAIL_SECONDS:
         ui.error(T(f"«{app.name}» no ha podido arrancar (código {rc}).\n\nRegistro: {pfx.log_path(app)}",
                    f"«{app.name}» could not start (code {rc}).\n\nLog: {pfx.log_path(app)}"))
