@@ -48,3 +48,16 @@ def test_bad_dll_mode(env):
     import pytest
     with pytest.raises(SystemExit):
         cli.main(["dll", app.id, "sapi=off"])
+
+
+def test_app_quirk_covers_installer(env):
+    """El instalador abre el programa al terminar: el ajuste debe ir ya en él."""
+    from malive import prefix as pfx
+    app = config.App(id="format-factory", name="Format Factory", kind="installed",
+                     prefix=str(env.tmp / "ff"), proton="GE-Proton10-1")
+    e = {}
+    pfx.apply_app_settings(e, app, "/home/u/Downloads/FFSetup5.22.0.0.exe")
+    assert e["WINEDLLOVERRIDES"] == "sapi=d"
+    e = {}
+    pfx.apply_app_settings(e, app, "msiexec")
+    assert e["WINEDLLOVERRIDES"] == "sapi=d"

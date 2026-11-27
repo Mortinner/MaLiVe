@@ -1,5 +1,11 @@
 # Cambios
 
+## 0.1.17
+- Los ajustes conocidos de un programa se aplican también a su instalador.
+  Si al terminar se marca «Ejecutar Format Factory», el programa lo abre el
+  instalador (no MaLiVe) y heredaba su entorno sin el ajuste: se quedaba en
+  bucle sin ventana.
+
 ## 0.1.16
 - **Format Factory arranca.** Con el motor de voz de Wine (SAPI) se quedaba
   en bucle al abrir, sin ventana. MaLiVe lleva ahora una lista de ajustes

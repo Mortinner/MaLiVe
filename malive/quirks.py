@@ -16,8 +16,25 @@ QUIRKS: dict[str, dict[str, dict[str, str]]] = {
 }
 
 
+# id de la app en MaLiVe -> ajustes para todo lo que se ejecute en su entorno.
+# Hace falta porque muchos instaladores abren el programa al terminar
+# («Ejecutar X»): ese proceso hereda el entorno del instalador, no el de MaLiVe.
+APP_QUIRKS: dict[str, dict[str, dict[str, str]]] = {
+    "format-factory": {"dll": {"sapi": "d"}},
+}
+
+
 def for_exe(exe_name: str) -> dict[str, dict[str, str]]:
     return QUIRKS.get(exe_name.lower(), {})
+
+
+def for_app(app_id: str) -> dict[str, dict[str, str]]:
+    return APP_QUIRKS.get(app_id, {})
+
+
+def merged(app_id: str, exe_name: str) -> dict[str, dict[str, str]]:
+    a, e = for_app(app_id), for_exe(exe_name)
+    return {"dll": {**a.get("dll", {}), **e.get("dll", {})}, "env": {**a.get("env", {}), **e.get("env", {})}}
 
 
 def overrides_string(dlls: dict[str, str]) -> str:

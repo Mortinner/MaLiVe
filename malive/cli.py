@@ -214,9 +214,10 @@ def _kv_command(a, field: str, label_es: str, label_en: str, valid=None) -> int:
     if a.items or a.remove:
         app.save()
     from . import quirks
-    known = {}
+    kind = "dll" if field == "dll_overrides" else "env"
+    known = dict(quirks.for_app(app.id).get(kind, {}))
     for e in app.entries:
-        known.update(quirks.for_exe(Path(e.exe).name).get("dll" if field == "dll_overrides" else "env", {}))
+        known.update(quirks.for_exe(Path(e.exe).name).get(kind, {}))
     print(T(f"{label_es} de «{app.name}»:", f"{label_en} for «{app.name}»:"))
     for k, v in store.items():
         print(f"  {k}={v}")

@@ -332,7 +332,7 @@ def apply_app_settings(env: dict[str, str], app: App, exe: str) -> None:
     """Ajustes conocidos para ese .exe (quirks) y los propios de la app, que
     mandan. Lo que el usuario ya traiga en WINEDLLOVERRIDES se respeta."""
     name = exe.replace("\\", "/").rsplit("/", 1)[-1]
-    q = quirks.for_exe(name)
+    q = quirks.merged(app.id, name)
     dlls = {**q.get("dll", {}), **app.dll_overrides}
     for key, value in {**q.get("env", {}), **app.env}.items():
         env[key] = value
