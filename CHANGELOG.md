@@ -1,5 +1,12 @@
 # Cambios
 
+## 0.1.22
+- **Soporte de NVIDIA: se descargaba el paquete equivocado.** nvidia-libs
+  publica dos (`-fakedll`, para integrarlo dentro de Wine, y el normal);
+  MaLiVe cogía el primero, que tiene otra estructura. Ahora elige el normal.
+- Una versión nueva de MaLiVe reintenta la descarga aunque fallara hace menos
+  de un día (puede traer el arreglo, como esta).
+
 ## 0.1.21
 - Si la descarga del soporte de NVIDIA falla, ya no se reintenta (con su
   ventana) en cada arranque de cada programa: como mucho una vez al día.

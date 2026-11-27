@@ -120,6 +120,7 @@ def test_download_real_flow(env, monkeypatch):
     blob = buf.getvalue()
     import hashlib
     api = {"tag_name": "v1.0.5", "assets": [
+        {"name": "nvidia-libs-v1.0.5-fakedll.tar.xz", "browser_download_url": "https://x/fake"},
         {"name": "nvcuda-32bit.tar.xz", "browser_download_url": "https://x/32"},
         {"name": "nvidia-libs-v1.0.5.tar.xz", "browser_download_url": "https://x/main",
          "digest": "sha256:" + hashlib.sha256(blob).hexdigest()},
@@ -135,6 +136,7 @@ def test_download_real_flow(env, monkeypatch):
             return False
 
     def fake_get(url, timeout=30):
+        assert url in (nvidia.GITHUB_LATEST, "https://x/main"), url  # nunca el fakedll ni el de 32 bits
         return Resp(json.dumps(api).encode() if url == nvidia.GITHUB_LATEST else blob)
     monkeypatch.setattr(nvidia, "_http_get", fake_get)
     d = nvidia.download()

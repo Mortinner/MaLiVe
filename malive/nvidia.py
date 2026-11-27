@@ -86,9 +86,12 @@ def _http_get(url: str, timeout: int = 30):
 
 def _pick_asset(assets: list[dict]) -> dict | None:
     """El paquete principal (no el de 32 bits de nvcuda ni el código fuente)."""
+    # «-fakedll» es otra organización (para meterlo dentro de Wine con
+    # WINEDLLPATH); la que enlazamos en cada contenedor es la normal (x64/*.dll).
     good = [a for a in assets
             if re.search(r"\.tar\.(xz|gz|zst)$|\.zip$", a.get("name", ""))
             and "32" not in a.get("name", "").replace("x86_64", "")
+            and "fakedll" not in a.get("name", "").lower()
             and "source" not in a.get("name", "").lower()]
     pref = [a for a in good if a["name"].lower().startswith("nvidia-libs")]
     return (pref or good or [None])[0]
@@ -182,14 +185,19 @@ def last_failure() -> dict | None:
 
 
 def _recent_failure() -> bool:
+    """Falló hace menos de un día con esta misma versión de MaLiVe (una versión
+    nueva puede traer el arreglo, así que entonces se reintenta)."""
+    from . import __version__
     f = last_failure()
-    return bool(f) and time.time() - float(f.get("time", 0)) < RETRY_AFTER
+    return (bool(f) and f.get("malive") == __version__
+            and time.time() - float(f.get("time", 0)) < RETRY_AFTER)
 
 
 def _record_failure(error: str) -> None:
+    from . import __version__
     try:
         libs_root().mkdir(parents=True, exist_ok=True)
-        _failure_file().write_text(json.dumps({"time": time.time(), "error": error}))
+        _failure_file().write_text(json.dumps({"time": time.time(), "error": error, "malive": __version__}))
     except OSError:
         pass
 
