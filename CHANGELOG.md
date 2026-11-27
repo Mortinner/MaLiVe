@@ -1,5 +1,16 @@
 # Cambios
 
+## 0.1.25
+- **Lanzadores que no respondían a los clics** (Armored Warfare, hecho con
+  CEF): GE-Proton activa Xalia, una capa para manejar lanzadores con mando
+  pensada para la Steam Deck, que se quedaba con los clics. En escritorio no
+  aporta nada: ahora va desactivada para todos (`PROTON_USE_XALIA=0`).
+- **Aislamiento: unidades que dejaban ver toda la carpeta personal.** Proton
+  crea una unidad S: para la carpeta «del juego» (acababa en `/home`) y
+  winetricks puede dejar X: apuntando a `~`. Ahora S: no se crea
+  (`PROTON_SET_GAME_DRIVE=0`) y, con el aislamiento, en cada arranque se quita
+  cualquier letra que no sea de MaLiVe (C:, Z: y las suyas).
+
 ## 0.1.24
 - **Lanzadores e instaladores web** (juegos como Armored Warfare, y en general
   los que descargan el programa y lo instalan con su propio .msi): no parecen

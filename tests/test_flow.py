@@ -445,3 +445,18 @@ def test_web_installer_detected_as_app_still_gets_menu_entries(env):
     # Volver a ejecutar el lanzador reutiliza el mismo contenedor
     assert runner.main([str(launcher)]) == 0
     assert len(config.all_apps()) == 1 and len(config.load_app(apps[0].id).entries) == 1
+
+
+def test_desktop_defaults_and_no_stray_drives(env):
+    """Sin Xalia ni unidad S:, y con aislamiento no quedan letras que vean $HOME."""
+    setup = copy_fixture(env, "TestApp-2.1.0-x64-setup.exe")
+    assert runner.main([str(setup)]) == 0
+    app = config.all_apps()[0]
+    dd = app.prefix_path / "dosdevices"
+    (dd / "x:").symlink_to(Path.home())   # como deja winetricks
+    (dd / "s:").symlink_to("/home")       # como deja Proton
+    assert runner.main(["--app", app.id, "--entry", app.entries[0].id]) == 0
+    call = env.calls()[-1]
+    assert call["xalia"] == "0" and call["gamedrive"] == "0"
+    assert "x:" not in call["drives"] and "s:" not in call["drives"]
+    assert "d:" in call["drives"] and "c:" in call["drives"]

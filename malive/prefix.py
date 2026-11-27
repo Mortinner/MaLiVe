@@ -95,6 +95,14 @@ def apply_drives(app: App, cfg: dict, source_dir: Path | None = None) -> dict[st
     if app.effective_isolate(cfg):
         empty.mkdir(exist_ok=True)
         _set_link(z, empty)
+        # Aislamiento: fuera cualquier otra letra que no sea de MaLiVe. Proton
+        # crea S: (carpeta del «juego») y winetricks puede dejar X: apuntando a
+        # la carpeta personal: verían todo $HOME.
+        for link in dd.iterdir():
+            name = link.name.lower()
+            if (len(name) == 2 and name[1] == ":" and name[0].isalpha() and name not in ("c:", "z:")
+                    and link.is_symlink()):
+                link.unlink()
         taken = set(drives(prefix))
         saved = dict(cfg.get("drive_letters") or {})
         letters = [c for c in "defghijklmnopqrtuvw" if c not in taken and c not in saved.values()]
@@ -418,6 +426,12 @@ def run_umu(app: App, cfg: dict, argv: list[str], cwd: Path | None = None,
         # a que se cerrase; "run" lanza en paralelo con el mismo wineserver.
         verb = "run" if is_busy(app.prefix_path) else "waitforexitandrun"
     env = build_env(app, cfg, verb)
+    # Valores comunes para programas de escritorio (el entorno del usuario manda):
+    #  - sin Xalia: la capa de GE-Proton para manejar lanzadores con mando
+    #    (Steam Deck) se queda con los clics en lanzadores CEF (Armored Warfare);
+    #  - sin la unidad S: de Proton, que con el aislamiento dejaría ver $HOME.
+    env.setdefault("PROTON_USE_XALIA", "0")
+    env.setdefault("PROTON_SET_GAME_DRIVE", "0")
     # Configuración única según el equipo, igual para todos los programas;
     # lo que el usuario ya traiga en su entorno manda.
     try:
