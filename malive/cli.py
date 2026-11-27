@@ -289,6 +289,11 @@ def cmd_nvidia(a) -> int:
            if gpu else T("no detectada", "not detected")))
     libs = nvidia.installed()
     print("nvidia-libs: " + (libs.name if libs else T("sin descargar", "not downloaded")))
+    fail = nvidia.last_failure()
+    if libs is None and fail:
+        print(T(f"  Último intento fallido: {fail.get('error', '?')}", f"  Last failed attempt: {fail.get('error', '?')}"))
+        print(T("  (no se reintenta hasta mañana; «malive nvidia update» para probar ya)",
+                "  (no retry until tomorrow; «malive nvidia update» to try now)"))
     mode = cfg.get("nvidia_mode", "auto")
     print(T(f"Para todos los programas: {mode}", f"For every program: {mode}"))
     for app in config.all_apps():

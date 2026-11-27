@@ -77,16 +77,27 @@ def test_no_gpu_no_effect(env, monkeypatch):
     assert "nvcuda" not in env.calls()[-1]["dlls"]
 
 
-def test_download_failure_does_not_block(env, monkeypatch):
+def test_download_failure_does_not_block_nor_retry_every_launch(env, monkeypatch):
     monkeypatch.setattr(nvidia, "gpu_present", lambda: True)
+    tries = []
 
     def boom(on_progress=None):
+        tries.append(1)
         raise nvidia.NvidiaError("sin red")
     monkeypatch.setattr(nvidia, "download", boom)
     app = _app(env)
     cli.main(["nvidia", app.id, "on"])
-    assert runner.main(["--app", app.id, "--entry", app.entries[0].id]) == 0
-    assert "nvcuda" not in env.calls()[-1]["dlls"]
+    for _ in range(3):
+        assert runner.main(["--app", app.id, "--entry", app.entries[0].id]) == 0
+        assert "nvcuda" not in env.calls()[-1]["dlls"]
+    assert len(tries) == 1  # un intento; los siguientes arranques no reintentan
+    assert nvidia.last_failure()["error"] == "sin red"
+    # Pasado un día, se reintenta
+    f = nvidia.last_failure()
+    f["time"] -= nvidia.RETRY_AFTER + 1
+    nvidia._failure_file().write_text(json.dumps(f))
+    runner.main(["--app", app.id, "--entry", app.entries[0].id])
+    assert len(tries) == 2
 
 
 def test_global_on_without_auto_detection(env, gpu):

@@ -23,6 +23,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import time
 import urllib.request
 from pathlib import Path
 
@@ -149,12 +150,15 @@ def download(on_progress=None) -> Path:
                                 f"Could not extract {asset['name']}: {r.stderr.strip()}"))
         found = find_root(extract)
         if found is None:
-            raise NvidiaError(T("El paquete descargado no contiene las DLL esperadas",
-                                "The downloaded package does not contain the expected DLLs"))
+            sample = sorted(str(p.relative_to(extract)) for p in extract.rglob("*") if p.is_file())[:20]
+            log.warning("nvidia-libs: %s (%d bytes) contiene: %s", asset["name"], archive.stat().st_size, sample)
+            raise NvidiaError(T(f"El paquete descargado ({asset['name']}) no contiene las DLL esperadas",
+                                f"The downloaded package ({asset['name']}) does not contain the expected DLLs"))
         found.rename(final)
     finally:
         shutil.rmtree(work, ignore_errors=True)
     _set_current(tag)
+    _failure_file().unlink(missing_ok=True)
     log.info("nvidia-libs %s descargado en %s", tag, final)
     return final
 
@@ -163,12 +167,42 @@ def _set_current(tag: str) -> None:
     _current_file().write_text(json.dumps({"dir": tag}))
 
 
+RETRY_AFTER = 24 * 3600  # tras un fallo, no se reintenta en cada arranque
+
+
+def _failure_file() -> Path:
+    return libs_root() / "last-failure.json"
+
+
+def last_failure() -> dict | None:
+    try:
+        return json.loads(_failure_file().read_text())
+    except (OSError, ValueError):
+        return None
+
+
+def _recent_failure() -> bool:
+    f = last_failure()
+    return bool(f) and time.time() - float(f.get("time", 0)) < RETRY_AFTER
+
+
+def _record_failure(error: str) -> None:
+    try:
+        libs_root().mkdir(parents=True, exist_ok=True)
+        _failure_file().write_text(json.dumps({"time": time.time(), "error": error}))
+    except OSError:
+        pass
+
+
 def ensure(ui=None) -> Path | None:
     """La versión instalada, o la descarga (mostrando «Preparando…»). None si falla:
-    el programa debe poder arrancar igualmente, sin aceleración."""
+    el programa debe poder arrancar igualmente, sin aceleración. Si falló hace
+    menos de un día, ni lo intenta (sin ventana ni consulta a GitHub)."""
     d = installed()
     if d is not None:
         return d
+    if _recent_failure():
+        return None
     try:
         if ui is not None:
             with ui.progress(T("Descargando el soporte de NVIDIA (CUDA, NVENC)…\n(solo la primera vez)",
@@ -177,6 +211,7 @@ def ensure(ui=None) -> Path | None:
         return download()
     except NvidiaError as e:
         log.warning("nvidia-libs: %s", e)
+        _record_failure(str(e))
         return None
 
 

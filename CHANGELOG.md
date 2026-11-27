@@ -1,5 +1,11 @@
 # Cambios
 
+## 0.1.21
+- Si la descarga del soporte de NVIDIA falla, ya no se reintenta (con su
+  ventana) en cada arranque de cada programa: como mucho una vez al día.
+  `malive nvidia` muestra el último error y `malive nvidia update` reintenta
+  en el momento. El registro anota qué paquete se bajó y qué contenía.
+
 ## 0.1.20
 - **Plantillas de contenedor (idea de Marcos, al estilo VMware).** Un
   «Windows base» por versión de Proton con fuentes estándar, suavizado
