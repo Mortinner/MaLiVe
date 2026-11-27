@@ -144,7 +144,7 @@ def test_download_real_flow(env, monkeypatch):
 
     # Suma mal → se descarta
     api["tag_name"] = "v1.0.6"
-    api["assets"][1]["digest"] = "sha256:" + "0" * 64
+    next(a for a in api["assets"] if a["browser_download_url"] == "https://x/main")["digest"] = "sha256:" + "0" * 64
     with pytest.raises(nvidia.NvidiaError):
         nvidia.download()
     assert nvidia.installed() == d
