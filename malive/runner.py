@@ -72,7 +72,7 @@ def _ensure_ready(app: App, cfg: dict) -> None:
 # --------------------------------------------------------------------------
 
 def launch(app: App, exe: Path, args: list[str], workdir: Path | None = None,
-           source_dir: Path | None = None, docs: list[Path] | None = None) -> int:
+           source_dir: Path | None = None, docs: list[Path] | None = None, on_tick=None) -> int:
     # Un "\0" en un argumento hace fallar a subprocess ("embedded null byte");
     # las apps instaladas con la 0.1.4 o anteriores pueden tenerlo guardado.
     args = [a.replace("\0", "") for a in args]
@@ -101,7 +101,7 @@ def launch(app: App, exe: Path, args: list[str], workdir: Path | None = None,
         app.save()
     except OSError:
         pass
-    rc, secs = pfx.run_umu(app, cfg, argv, cwd=workdir or exe.parent, install_path=exe.parent)
+    rc, secs = pfx.run_umu(app, cfg, argv, cwd=workdir or exe.parent, install_path=exe.parent, on_tick=on_tick)
     if rc != 0 and secs < QUICK_FAIL_SECONDS:
         ui.error(T(f"«{app.name}» no ha podido arrancar (código {rc}).\n\nRegistro: {pfx.log_path(app)}",
                    f"«{app.name}» could not start (code {rc}).\n\nLog: {pfx.log_path(app)}"))
@@ -400,11 +400,37 @@ def _run_lnk_in_app(app: App, det: detect.Detection) -> int:
 
 
 def run_portable(det: detect.Detection, args: list[str]) -> int:
+    """Un .exe que no parece instalador. Muchos lo son de todos modos: los
+    lanzadores e instaladores web (de juegos, Steam, Discord…) descargan el
+    programa y lo instalan con un .msi u otro instalador. Por eso se vigila el
+    menú Inicio también aquí: si aparecen accesos, se crean sus entradas en el
+    menú como en una instalación normal."""
     cfg = config.load_global()
     app = config.find_portable_by_dir(det.path.parent)
     if app is None:
         app = _new_app(det.name or det.path.stem, "portable", det.path, cfg)
-    return launch(app, det.path, args, workdir=det.path.parent, source_dir=det.path.parent)
+    _ensure_ready(app, cfg)
+    prefix = app.prefix_path
+    before = shortcuts.take_lnk_snapshot(prefix)
+    created: list[config.Entry] = []
+
+    def scan() -> None:
+        new = shortcuts.register(app, shortcuts.new_from_lnks(prefix, before, shortcuts.take_lnk_snapshot(prefix)))
+        if new:
+            created.extend(new)
+            log.info("el programa %s instaló accesos: %s", app.id, [e.name for e in new])
+            ui.notify(_installed_msg(app.name, new))
+
+    rc = launch(app, det.path, args, workdir=det.path.parent, source_dir=det.path.parent, on_tick=scan)
+    scan()
+    if created:
+        # El instalador lanzado puede seguir vivo un poco (o abrir el programa)
+        if pfx.is_busy(prefix):
+            pfx.wait_idle(prefix, on_tick=scan)
+            scan()
+        if shortcuts.rewrite_app(app):
+            shortcuts.refresh_menus()
+    return rc
 
 
 # --------------------------------------------------------------------------

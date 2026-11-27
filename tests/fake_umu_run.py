@@ -97,4 +97,14 @@ if b"NullsoftInst" in data:
     time.sleep(float(os.environ.get("FAKE_APP_RUNS", "0")))
     sys.exit(0)
 
+if exe.name == "aw_launcher.exe":
+    # Lanzador/instalador web: descarga e instala el juego con su propio .msi
+    dest = c / "Program Files/Game"
+    dest.mkdir(parents=True, exist_ok=True)
+    shutil.copy(payload, dest / "game.exe")
+    sm = c / "users/steamuser/AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Game"
+    sm.mkdir(parents=True, exist_ok=True)
+    pylnk3.for_file(r"C:\Program Files\Game\game.exe", str(sm / "Game.lnk"), work_dir=r"C:\Program Files\Game")
+    sys.exit(0)
+
 sys.exit(int(os.environ.get("FAKE_RC", "0")))

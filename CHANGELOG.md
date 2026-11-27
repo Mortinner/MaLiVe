@@ -1,5 +1,13 @@
 # Cambios
 
+## 0.1.24
+- **Lanzadores e instaladores web** (juegos como Armored Warfare, y en general
+  los que descargan el programa y lo instalan con su propio .msi): no parecen
+  instaladores, así que MaLiVe los trataba como portables y el juego instalado
+  no llegaba al menú. Ahora también se vigila el menú Inicio al ejecutar un
+  .exe cualquiera: si aparecen accesos, se crean sus entradas como en una
+  instalación normal.
+
 ## 0.1.23
 - **NVIDIA (CUDA, NVENC, OptiX) con lo que ya trae GE-Proton.** Los GE-Proton
   recientes incluyen las nvidia-libs de SveSop y las activan con

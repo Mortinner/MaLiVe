@@ -219,6 +219,8 @@ malive integrate | unintegrate
 - The menu section is derived from the file types the program opens
   (video/audio → Multimedia, images → Graphics…); if it registers none, it
   goes to Utilities.
+- In .msi installers, Wine's folder picker ("Browse") only shows the current
+  drive: to install on another one (M:, N:…) type the path in the "Folder" box.
 - Context menus a program adds to Windows Explorer (e.g. 7-Zip's submenu) do
   not appear in Dolphin: they are DLLs only Explorer can load.
 - Out of scope: kernel-level anti-cheat, Windows drivers, aggressive DRM.

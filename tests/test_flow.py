@@ -429,3 +429,19 @@ def test_installed_app_gets_mimetype_and_opens_files(env):
     # Las carpetas de dentro de $HOME no hace falta exponerlas
     assert runner.main(["--app", app.id, "--entry", entry.id, str(doc)]) == 0
     assert env.calls()[-1]["pv_rw"] == ""
+
+
+def test_web_installer_detected_as_app_still_gets_menu_entries(env):
+    """Lanzadores tipo «aw_launcher.exe»: no parecen instaladores, pero
+    descargan e instalan el juego. Sus accesos deben llegar al menú."""
+    launcher = env.downloads / "aw_launcher.exe"
+    shutil.copy(FIX / "hello.exe", launcher)
+    assert runner.main([str(launcher)]) == 0
+    apps = config.all_apps()
+    assert len(apps) == 1 and apps[0].kind == "portable"
+    names = [e.name for e in apps[0].entries]
+    assert names == ["Game"]
+    assert Path(apps[0].entries[0].desktop).is_file()
+    # Volver a ejecutar el lanzador reutiliza el mismo contenedor
+    assert runner.main([str(launcher)]) == 0
+    assert len(config.all_apps()) == 1 and len(config.load_app(apps[0].id).entries) == 1

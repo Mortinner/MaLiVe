@@ -219,6 +219,9 @@ malive integrate | unintegrate
 - La sección del menú se deduce de los tipos de fichero que abre el programa
   (vídeo/audio → Multimedia, imágenes → Gráficos…); si no registra ninguno, va
   a Utilidades.
+- En los instaladores .msi, el selector de carpetas de Wine («Browse») solo
+  muestra la unidad actual: para instalar en otra (M:, N:…) escribe la ruta en
+  la casilla «Folder».
 - Los menús contextuales que un programa añade al Explorador de Windows (p. ej.
   el submenú de 7-Zip) no aparecen en Dolphin: son DLL que solo el Explorador
   puede cargar.
