@@ -79,6 +79,21 @@ for the file types their installer registered in Windows (read from the
 prefix's registry), and accept files dragged onto their icon. Linux paths
 are translated to Windows ones (`~/Documents/notes.txt` → `D:\notes.txt`).
 
+**Add-ons** (codecs, plugins, libraries): an installer such as LAV Filters
+is not a new program but something for another program. MaLiVe recognises
+the common ones (LAV Filters, K-Lite, Visual C++, .NET, DirectX…) and
+installs them into the right program:
+- if only one candidate is open (for codecs, the programs that open video or
+  audio), it goes there without asking; same if none is open and you have a
+  single player;
+- if there are several, it asks with checkboxes (you can pick more than
+  one), with the last one used ticked.
+
+With an unknown installer MaLiVe does not guess: it is a new program, unless
+a MaLiVe program is open, in which case it asks in case it is an add-on for
+it. To force it: right-click → **Open with → MaLiVe: install into a
+program…**, or `malive-run --into APP file.exe`.
+
 ## Automatic updates
 
 A systemd user timer (`malive-auto.timer`) checks the
@@ -158,7 +173,11 @@ malive integrate | unintegrate
 - A portable program with an installer-like name (e.g. `setup-tool.exe`
   without an installer signature) is treated as an installer; if it installs
   nothing, its prefix is removed.
-- The menu category is always "Utility".
+- The menu section is derived from the file types the program opens
+  (video/audio → Multimedia, images → Graphics…); if it registers none, it
+  goes to Utilities.
+- Context menus a program adds to Windows Explorer (e.g. 7-Zip's submenu) do
+  not appear in Dolphin: they are DLLs only Explorer can load.
 - Out of scope: kernel-level anti-cheat, Windows drivers, aggressive DRM.
 
 ## Releasing a version

@@ -1,5 +1,17 @@
 # Cambios
 
+## 0.1.14
+- **Complementos dentro de un programa.** Los instaladores de códecs,
+  plugins o bibliotecas (LAV Filters, K-Lite, Visual C++, .NET, DirectX…) ya
+  no se instalan como programa nuevo, sino dentro del programa que los
+  necesita. Si no hay duda (un solo candidato abierto, o un único
+  reproductor para los códecs) va directo; si hay varios, MaLiVe pregunta
+  con el último usado marcado. Con un instalador desconocido no adivina:
+  solo pregunta si hay algún programa de MaLiVe abierto.
+- Nueva opción en **Abrir con** de los `.exe`/`.msi`: «MaLiVe: instalar
+  dentro de un programa…», y `malive-run --into APP fichero.exe`.
+- MaLiVe recuerda cuándo se usó cada programa por última vez.
+
 ## 0.1.13
 - **Ficheros en un NAS o en otro disco.** Al abrir un fichero que está fuera
   de la carpeta personal (un NAS montado en `/mnt`, un disco en

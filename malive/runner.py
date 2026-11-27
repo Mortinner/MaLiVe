@@ -9,7 +9,7 @@ import sys
 import traceback
 from pathlib import Path
 
-from . import config, detect, paths, pe, prefix as pfx, proton, shortcuts, ui
+from . import addons, config, detect, paths, pe, prefix as pfx, proton, shortcuts, ui
 from .i18n import T
 from .config import App
 
@@ -96,6 +96,11 @@ def launch(app: App, exe: Path, args: list[str], workdir: Path | None = None,
         # crea una consola nueva (conhost) para él.
         argv = ["start", "/wait", "/unix", str(exe), *args]
     log.info("lanzando %s en %s: %s", app.id, app.proton, argv)
+    app.last_used = config.now_iso()
+    try:
+        app.save()
+    except OSError:
+        pass
     rc, secs = pfx.run_umu(app, cfg, argv, cwd=workdir or exe.parent, install_path=exe.parent)
     if rc != 0 and secs < QUICK_FAIL_SECONDS:
         ui.error(T(f"«{app.name}» no ha podido arrancar (código {rc}).\n\nRegistro: {pfx.log_path(app)}",
@@ -248,6 +253,60 @@ def install(det: detect.Detection, args: list[str], app: App | None = None) -> i
     return 0
 
 
+def install_addon(det: detect.Detection, args: list[str], app: App) -> int:
+    """Instala un complemento (códecs, bibliotecas…) dentro del entorno de un
+    programa existente. No crea accesos en el menú: los del complemento
+    (configuraciones, desinstaladores) solo ensuciarían."""
+    cfg = config.load_global()
+    _ensure_ready(app, cfg)
+    pfx.apply_drives(app, cfg, det.path.parent)
+    was_running = pfx.is_busy(app.prefix_path)
+    name = det.name or det.path.stem
+    argv = _installer_argv(app, det, args)
+    log.info("instalando el complemento %s (%s) dentro de %s", det.path, det.subtype, app.id)
+    rc, _ = pfx.run_umu(app, cfg, argv, cwd=det.path.parent, install_path=det.path.parent)
+    if not was_running and pfx.is_busy(app.prefix_path):
+        pfx.wait_idle(app.prefix_path, timeout=300)
+    if app.entries and shortcuts.rewrite_app(app):
+        shortcuts.refresh_menus()
+    log.info("complemento %s en %s: rc=%s", name, app.id, rc)
+    if rc == 0:
+        extra = T(f"\nSi «{app.name}» está abierto, ciérralo y vuelve a abrirlo.",
+                  f"\nIf «{app.name}» is open, close it and open it again.") if was_running else ""
+        ui.notify(T(f"«{name}» instalado dentro de «{app.name}».", f"«{name}» installed into «{app.name}».") + extra)
+    else:
+        ui.notify(T(f"El instalador de «{name}» terminó con código {rc} en «{app.name}».",
+                    f"The «{name}» installer exited with code {rc} in «{app.name}»."))
+    return rc
+
+
+def install_into(det: detect.Detection, args: list[str], targets: list[str]) -> int:
+    rc = 0
+    for target in targets:
+        if target == addons.NEW:
+            r = install(det, args) if det.is_installer else run_portable(det, args)
+        else:
+            app = config.load_app(target)
+            if app is None:
+                continue
+            r = install_addon(det, args, app)
+        rc = rc or r
+    return rc
+
+
+def _install_new_or_into(det: detect.Detection, args: list[str], choose: bool = False) -> int:
+    # Mismo nombre que un programa ya instalado: es una actualización suya
+    if not choose and config.find_installed_by_name(det.name or det.path.stem) is not None:
+        return install(det, args)
+    targets = addons.ask(det, force=choose)
+    if targets is None:
+        log.info("instalación de %s cancelada al elegir destino", det.path)
+        return 1
+    if not targets:
+        return install(det, args) if det.is_installer else run_portable(det, args)
+    return install_into(det, args, targets)
+
+
 def _installed_msg(name: str, entries) -> str:
     names = ", ".join(e.name for e in entries)
     return T(f"«{name}» instalado. Ya está en el menú de aplicaciones: {names}",
@@ -271,7 +330,7 @@ def _choose_exes(name: str, exes: list[shortcuts.Candidate]) -> list[shortcuts.C
 # Punto de entrada por fichero
 # --------------------------------------------------------------------------
 
-def run_file(path: Path, args: list[str]) -> int:
+def run_file(path: Path, args: list[str], choose: bool = False, into: str | None = None) -> int:
     path = path.expanduser()
     if not path.is_file():
         raise UserError(T(f"No existe el fichero:\n{path}", f"File not found:\n{path}"))
@@ -304,8 +363,18 @@ def run_file(path: Path, args: list[str]) -> int:
             "Este acceso directo de Windows no pertenece a ningún programa instalado con MaLiVe",
             "This Windows shortcut does not belong to any program installed with MaLiVe",
         ) + (f":\n{target}" if target else "."))
+    if into is not None:
+        if not det.is_installer and det.kind != "app":
+            raise UserError(T(f"No se puede ejecutar «{path.name}»: {det.reason}",
+                              f"«{path.name}» cannot be run: {det.reason}"))
+        app = config.load_app(into)
+        if app is None:
+            raise UserError(T(f"No existe la app «{into}» en MaLiVe.", f"There is no app «{into}» in MaLiVe."))
+        return install_addon(det, args, app)
     if det.is_installer:
-        return install(det, args)
+        return _install_new_or_into(det, args, choose)
+    if det.kind == "app" and choose:
+        return _install_new_or_into(det, args, choose)
     if det.kind == "app":
         return run_portable(det, args)
     if det.kind == "dos":
@@ -351,6 +420,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--entry", help=T("id de la entrada de la app", "id of the app's entry"))
     p.add_argument("--uninstall", metavar="APP", help=T("desinstalar una app (con confirmación)",
                                                         "uninstall an app (asks first)"))
+    p.add_argument("--choose", action="store_true",
+                   help=T("preguntar en qué programa instalarlo (complementos, códecs…)",
+                          "ask which program to install it into (add-ons, codecs…)"))
+    p.add_argument("--into", metavar="APP", help=T("instalarlo dentro del entorno de esa app",
+                                                   "install it into that app's environment"))
     p.add_argument("file", nargs="?", help=T("fichero a ejecutar", "file to run"))
     p.add_argument("args", nargs=argparse.REMAINDER, help=T("argumentos para el programa", "arguments for the program"))
     return p
@@ -371,7 +445,7 @@ def main(argv: list[str] | None = None) -> int:
         if not opts.file:
             build_parser().print_help()
             return 2
-        return run_file(Path(opts.file), opts.args)
+        return run_file(Path(opts.file), opts.args, choose=opts.choose, into=opts.into)
     except (UserError, pfx.PrefixError, proton.ProtonError) as e:
         log.warning("%s", e)
         ui.error(str(e))

@@ -13,6 +13,7 @@ from . import paths
 from .shortcuts import _desktop_escape, exec_quote, malive_run_path, refresh_menus
 
 DESKTOP_ID = "malive.desktop"
+INTO_DESKTOP_ID = "malive-into.desktop"  # «Abrir con» → instalar dentro de un programa
 MIME_TYPES = [
     "application/x-ms-dos-executable",
     "application/x-msdownload",
@@ -146,11 +147,32 @@ def handler_desktop_text() -> str:
     ])
 
 
+def into_desktop_text() -> str:
+    """Opción de «Abrir con» para instalar un complemento (códecs, plugins…)
+    dentro de un programa ya instalado. No se asocia por defecto."""
+    return "\n".join([
+        "[Desktop Entry]",
+        "Type=Application",
+        "Name=MaLiVe: install into a program…",
+        "Name[es]=MaLiVe: instalar dentro de un programa…",
+        "Comment=Install codecs, plugins or libraries into a program installed with MaLiVe",
+        "Comment[es]=Instala códecs, plugins o bibliotecas dentro de un programa instalado con MaLiVe",
+        f"Exec={_desktop_escape(exec_quote(malive_run_path()))} --choose %f",
+        "Icon=application-x-ms-dos-executable",
+        "Terminal=false",
+        "NoDisplay=true",
+        "MimeType=" + ";".join(m for m in MIME_TYPES if m != "application/x-ms-shortcut") + ";",
+        "Categories=System;",
+        "",
+    ])
+
+
 def install_handler() -> Path:
     d = paths.applications_dir()
     d.mkdir(parents=True, exist_ok=True)
     path = d / DESKTOP_ID
     path.write_text(handler_desktop_text(), encoding="utf-8")
+    (d / INTO_DESKTOP_ID).write_text(into_desktop_text(), encoding="utf-8")
     set_default_handler()
     refresh_menus()
     return path
@@ -159,6 +181,7 @@ def install_handler() -> Path:
 def remove_handler() -> None:
     unset_default_handler()
     (paths.applications_dir() / DESKTOP_ID).unlink(missing_ok=True)
+    (paths.applications_dir() / INTO_DESKTOP_ID).unlink(missing_ok=True)
     refresh_menus()
 
 

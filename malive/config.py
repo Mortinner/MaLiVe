@@ -109,6 +109,7 @@ class App:
     source: str = ""  # instalador o ejecutable original
     created: str = ""
     isolate: bool | None = None  # None = usar el valor global
+    last_used: str = ""  # último lanzamiento (ISO); para proponer destino a los complementos
     entries: list[Entry] = field(default_factory=list)
 
     @property

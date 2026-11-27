@@ -81,6 +81,21 @@ para los tipos de fichero que su instalador registró en Windows (se leen del
 registro del prefijo), y aceptan ficheros arrastrados a su icono. Las rutas de
 Linux se traducen a las de Windows (`~/Documentos/notas.txt` → `D:\notas.txt`).
 
+**Complementos** (códecs, plugins, bibliotecas): un instalador como el de LAV
+Filters no es un programa nuevo, sino algo para otro programa. MaLiVe
+reconoce los más comunes (LAV Filters, K-Lite, Visual C++, .NET, DirectX…) y
+los instala dentro del programa que corresponde:
+- si solo uno de los candidatos está abierto (para códecs, los que abren
+  vídeo o audio), va a ese sin preguntar; si no hay ninguno abierto y solo
+  tienes un reproductor, también;
+- si hay varios, pregunta con casillas (se puede elegir más de uno), con el
+  último usado marcado.
+
+Con un instalador desconocido MaLiVe no adivina: es un programa nuevo, salvo
+que haya algún programa de MaLiVe abierto, en cuyo caso pregunta por si es un
+complemento suyo. Para forzarlo: clic derecho → **Abrir con → MaLiVe:
+instalar dentro de un programa…**, o `malive-run --into APP fichero.exe`.
+
 ## Actualizaciones automáticas
 
 Un temporizador de systemd de usuario (`malive-auto.timer`) busca cada 3 horas
@@ -157,7 +172,12 @@ malive integrate | unintegrate
 - Sin `binfmt_misc` todavía (ejecutar `.exe` desde la terminal: usa `malive run`).
 - Un portable con nombre de instalador (p. ej. `setup-tool.exe` sin firma de
   instalador) se trata como instalador; si no instala nada, su prefijo se borra.
-- La categoría del menú es siempre "Utilidades".
+- La sección del menú se deduce de los tipos de fichero que abre el programa
+  (vídeo/audio → Multimedia, imágenes → Gráficos…); si no registra ninguno, va
+  a Utilidades.
+- Los menús contextuales que un programa añade al Explorador de Windows (p. ej.
+  el submenú de 7-Zip) no aparecen en Dolphin: son DLL que solo el Explorador
+  puede cargar.
 - Fuera de alcance: antitrampas de kernel, drivers, DRM agresivo.
 
 ## Publicar una versión
