@@ -227,6 +227,25 @@ def _png_size(name: str) -> int:
     return int(m.group(1)) * 100 + int(m.group(3)) if m else 0
 
 
+def find_icon(cand: "Candidate", dest_base: Path) -> str | None:
+    """El icono del acceso; si no se puede sacar (p. ej. los .msi apuntan a un
+    fichero en C:\\windows\\Installer que a veces no está o no trae iconos),
+    el del propio .exe y, si no, un .ico de su carpeta."""
+    tries = []
+    if cand.icon_source and cand.icon_source != cand.exe:
+        tries.append((cand.icon_source, cand.icon_index))
+    tries.append((cand.exe, cand.icon_index if cand.icon_source in (None, cand.exe) else 0))
+    for source, index in tries:
+        icon = extract_icon(source, dest_base, index)
+        if icon:
+            return icon
+    try:
+        icos = sorted(cand.exe.parent.glob("*.ico"))
+    except OSError:
+        icos = []
+    return extract_icon(icos[0], dest_base) if icos else None
+
+
 def extract_icon(source: Path, dest_base: Path, index: int = 0) -> str | None:
     """Extrae el icono más grande. Necesita icoutils (wrestool/icotool).
     Devuelve la ruta del PNG (o .ico) creado, o None."""
@@ -291,6 +310,39 @@ def malive_run_path() -> str:
     return str(Path.home() / ".local/bin/malive-run")
 
 
+# Ficheros y carpetas que delatan un juego (motores, SDK de juegos, antitrampas)
+_GAME_FILES = {
+    "unityplayer.dll", "gameassembly.dll", "steam_api.dll", "steam_api64.dll", "crysystem.dll",
+    "cryrenderd3d11.dll", "binkw32.dll", "binkw64.dll", "bink2w64.dll", "fmod.dll", "fmod64.dll",
+    "fmodex64.dll", "aksoundengine.dll", "physx3_x64.dll", "physx_64.dll", "galaxy64.dll",
+    "eossdk-win64-shipping.dll", "nvngx_dlss.dll", "amd_fidelityfx_dx12.dll", "xinput1_3.dll",
+}
+_GAME_DIRS = {"easyanticheat", "battleye", "engine", "binaries", "paks"}
+
+
+def looks_like_game(exe: Path) -> bool:
+    """Heurística barata (sin recorrer el disco entero): la ruta, el nombre del
+    .exe o lo que hay junto a él."""
+    low = str(exe).lower().replace("\\", "/")
+    if re.search(r"/(games|steamapps|epic games|riot games|gog games)/", low) or low.endswith("-shipping.exe"):
+        return True
+    for d in (exe.parent, exe.parent.parent):
+        try:
+            names = {p.name.lower() for p in d.iterdir()}
+        except OSError:
+            continue
+        if names & _GAME_FILES or names & _GAME_DIRS:
+            return True
+    return False
+
+
+def _categories(entry: Entry, mimes: list[str]) -> str:
+    cats = assoc.categories_for(mimes)
+    if cats == "Utility;" and looks_like_game(Path(entry.exe)):
+        return "Game;"
+    return cats
+
+
 def desktop_text(app: App, entry: Entry) -> str:
     wmclass = Path(entry.exe).name.lower()
     exe_win = pfx.unix_to_windows(app.prefix_path, Path(entry.exe))
@@ -306,7 +358,7 @@ def desktop_text(app: App, entry: Entry) -> str:
         f"Exec={_desktop_escape(exec_quote(malive_run_path()))} --app {app.id} --entry {entry.id} %F",
         f"Icon={entry.icon or 'application-x-ms-dos-executable'}",
         "Terminal=false",
-        f"Categories={assoc.categories_for(mimes)}",
+        f"Categories={_categories(entry, mimes)}",
         f"StartupWMClass={_desktop_escape(wmclass)}",
         *([f"MimeType={';'.join(mimes)};"] if mimes else []),
         f"X-MaLiVe-App={app.id}",
@@ -341,9 +393,17 @@ def rewrite_app(app: App) -> bool:
     """Reescribe los .desktop de una app si su contenido ha cambiado (p. ej.
     asociaciones que el instalador registró al final). Devuelve si cambió algo."""
     changed = False
+    icons_fixed = False
     for entry in app.entries:
         if not entry.desktop or not Path(entry.desktop).exists():
             continue
+        if not entry.icon or not Path(entry.icon).exists():
+            exe = Path(entry.exe)
+            icon = find_icon(Candidate(name=entry.name, exe=exe, icon_source=exe),
+                             paths.icons_dir() / f"{app.id}-{entry.id}") if exe.is_file() else None
+            if icon:
+                entry.icon = icon
+                icons_fixed = True
         new = desktop_text(app, entry)
         try:
             old = Path(entry.desktop).read_text(encoding="utf-8")
@@ -352,6 +412,8 @@ def rewrite_app(app: App) -> bool:
         if new != old:
             write_desktop(app, entry)
             changed = True
+    if icons_fixed:
+        app.save()
     return changed
 
 
@@ -500,7 +562,7 @@ def register(app: App, candidates: list[Candidate]) -> list[Entry]:
             eid, n = f"{base}-{n}", n + 1
         used_ids.add(eid)
         existing.add(key)
-        icon = extract_icon(cand.icon_source or cand.exe, paths.icons_dir() / f"{app.id}-{eid}", cand.icon_index)
+        icon = find_icon(cand, paths.icons_dir() / f"{app.id}-{eid}")
         entry = Entry(id=eid, name=cand.name, exe=str(cand.exe), args=cand.args,
                       workdir=str(cand.workdir) if cand.workdir else None, icon=icon)
         entry.desktop = str(write_desktop(app, entry))

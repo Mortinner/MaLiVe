@@ -441,6 +441,10 @@ def test_web_installer_detected_as_app_still_gets_menu_entries(env):
     assert len(apps) == 1 and apps[0].kind == "portable"
     names = sorted(e.name for e in apps[0].entries)
     assert names == ["Game", "Game Launcher"]
+    by_name = {e.name: e for e in apps[0].entries}
+    # En C:\\Games → sección Juegos; el otro no tiene pistas de juego
+    assert "Categories=Game;" in Path(by_name["Game Launcher"].desktop).read_text()
+    assert "Categories=Utility;" in Path(by_name["Game"].desktop).read_text()
     assert Path(apps[0].entries[0].desktop).is_file()
     # Volver a ejecutar el lanzador reutiliza el mismo contenedor
     assert runner.main([str(launcher)]) == 0
@@ -460,3 +464,16 @@ def test_desktop_defaults_and_no_stray_drives(env):
     assert call["xalia"] == "0" and call["gamedrive"] == "0"
     assert "x:" not in call["drives"] and "s:" not in call["drives"]
     assert "d:" in call["drives"] and "c:" in call["drives"]
+
+
+def test_looks_like_game(tmp_path):
+    from malive.shortcuts import looks_like_game
+    d = tmp_path / "Program Files" / "Something"
+    d.mkdir(parents=True)
+    exe = d / "app.exe"
+    exe.write_bytes(b"MZ")
+    assert not looks_like_game(exe)
+    (d / "UnityPlayer.dll").write_bytes(b"MZ")
+    assert looks_like_game(exe)
+    assert looks_like_game(tmp_path / "drive_c/Games/Launcher.exe")
+    assert looks_like_game(tmp_path / "x/MyGame-Win64-Shipping.exe")

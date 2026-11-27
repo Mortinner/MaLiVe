@@ -1,5 +1,16 @@
 # Cambios
 
+## 0.1.27
+- **Juegos en la sección Juegos del menú.** Si un programa no abre tipos de
+  fichero y tiene pistas de juego (instalado en una carpeta «Games»,
+  Steam/Epic, ejecutable de Unreal `-Shipping.exe`, o junto a ficheros de
+  motores y SDK como Unity, CryEngine, Bink, FMOD, Wwise, PhysX, Steam, DLSS,
+  EasyAntiCheat, BattlEye), va a Juegos en vez de a Utilidades.
+- **Iconos que no salían:** si el icono que indica el acceso no se puede sacar
+  (los .msi lo apuntan a veces a un fichero de `C:\\windows\\Installer`), se
+  usa el del propio .exe o un .ico de su carpeta. `malive refresh` (y cada
+  actualización) reintenta los que faltan.
+
 ## 0.1.26
 - Accesos que el instalador deja en la carpeta del programa en vez de en el
   menú Inicio (el .msi de Armored Warfare crea `C:\\Games\\Armored
