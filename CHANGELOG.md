@@ -1,5 +1,14 @@
 # Cambios
 
+## 0.1.16
+- **Format Factory arranca.** Con el motor de voz de Wine (SAPI) se quedaba
+  en bucle al abrir, sin ventana. MaLiVe lleva ahora una lista de ajustes
+  conocidos por programa y, para Format Factory, desactiva `sapi.dll`.
+- **Ajustes por programa:** `malive dll APP sapi=d` (DLL desactivadas o
+  cambiadas) y `malive env APP VAR=VALOR` (variables al lanzar, p. ej.
+  `PROTON_ENABLE_NVAPI=1`). Se guardan en la app y se aplican siempre, también
+  desde el menú; mandan sobre los ajustes conocidos.
+
 ## 0.1.15
 - **Discos de datos y NAS como unidades de Windows.** Con el aislamiento, los
   programas solo veían C:, Documentos (D:) y Descargas (E:); un NAS o un

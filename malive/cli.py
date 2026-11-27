@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import re
 import shutil
 import sys
 import time
@@ -194,6 +195,51 @@ def cmd_exec(a) -> int:
         argv[0] = str(p.resolve())
     rc, _ = pfx.run_umu(app, cfg, argv, cwd=app.prefix_path)
     return rc
+
+
+def _kv_command(a, field: str, label_es: str, label_en: str, valid=None) -> int:
+    """malive dll|env APP [CLAVE=VALOR …] [--remove CLAVE …]: sin nada, lista."""
+    app = _get_app(a.app)
+    store: dict[str, str] = getattr(app, field)
+    for item in a.items:
+        if "=" not in item:
+            sys.exit(T(f"Formato: CLAVE=VALOR (recibido «{item}»)", f"Format: KEY=VALUE (got «{item}»)"))
+        key, value = item.split("=", 1)
+        key = key.strip()
+        if valid:
+            valid(key, value)
+        store[key] = value
+    for key in a.remove or []:
+        store.pop(key, None)
+    if a.items or a.remove:
+        app.save()
+    from . import quirks
+    known = {}
+    for e in app.entries:
+        known.update(quirks.for_exe(Path(e.exe).name).get("dll" if field == "dll_overrides" else "env", {}))
+    print(T(f"{label_es} de «{app.name}»:", f"{label_en} for «{app.name}»:"))
+    for k, v in store.items():
+        print(f"  {k}={v}")
+    for k, v in known.items():
+        if k not in store:
+            print(f"  {k}={v}  " + T("(ajuste conocido de MaLiVe)", "(MaLiVe known fix)"))
+    if not store and not known:
+        print(T("  (ninguno)", "  (none)"))
+    return 0
+
+
+def _check_dll(key: str, value: str) -> None:
+    if not re.fullmatch(r"(?:[nb](?:,[nb])?|d|)", value):
+        sys.exit(T(f"Modo de DLL no válido «{value}»: usa n, b, n,b, b,n o d (desactivada).",
+                   f"Invalid DLL mode «{value}»: use n, b, n,b, b,n or d (disabled)."))
+
+
+def cmd_dll(a) -> int:
+    return _kv_command(a, "dll_overrides", "DLL ajustadas", "DLL overrides", _check_dll)
+
+
+def cmd_env(a) -> int:
+    return _kv_command(a, "env", "Variables de entorno", "Environment variables")
 
 
 def cmd_winetricks(a) -> int:
@@ -393,6 +439,20 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("program")
     s.add_argument("args", nargs=argparse.REMAINDER)
     s.set_defaults(func=cmd_exec)
+
+    s = sub.add_parser("dll", help=T("DLL ajustadas de una app (p. ej. sapi=d desactiva sapi.dll)",
+                                     "an app's DLL overrides (e.g. sapi=d disables sapi.dll)"))
+    s.add_argument("app")
+    s.add_argument("items", nargs="*", metavar="DLL=MODO")
+    s.add_argument("--remove", nargs="+", metavar="DLL")
+    s.set_defaults(func=cmd_dll)
+
+    s = sub.add_parser("env", help=T("variables de entorno de una app (p. ej. PROTON_ENABLE_NVAPI=1)",
+                                     "an app's environment variables (e.g. PROTON_ENABLE_NVAPI=1)"))
+    s.add_argument("app")
+    s.add_argument("items", nargs="*", metavar="VAR=VALOR")
+    s.add_argument("--remove", nargs="+", metavar="VAR")
+    s.set_defaults(func=cmd_env)
 
     s = sub.add_parser("winetricks", help=T("instalar componentes (dotnet48, vcrun2022...) en una app",
                                             "install components (dotnet48, vcrun2022...) in an app"))

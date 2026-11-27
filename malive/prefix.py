@@ -12,7 +12,7 @@ import subprocess
 import time
 from pathlib import Path
 
-from . import config, mounts, paths, proton, ui
+from . import config, mounts, paths, proton, quirks, ui
 from .config import App
 from .i18n import T
 
@@ -328,6 +328,22 @@ def build_env(app: App, cfg: dict, verb: str | None = None) -> dict[str, str]:
     return env
 
 
+def apply_app_settings(env: dict[str, str], app: App, exe: str) -> None:
+    """Ajustes conocidos para ese .exe (quirks) y los propios de la app, que
+    mandan. Lo que el usuario ya traiga en WINEDLLOVERRIDES se respeta."""
+    name = exe.replace("\\", "/").rsplit("/", 1)[-1]
+    q = quirks.for_exe(name)
+    dlls = {**q.get("dll", {}), **app.dll_overrides}
+    for key, value in {**q.get("env", {}), **app.env}.items():
+        env[key] = value
+    if dlls:
+        parts = [quirks.overrides_string(dlls)]
+        if env.get("WINEDLLOVERRIDES"):
+            parts.append(env["WINEDLLOVERRIDES"])  # lo explícito del usuario, al final, gana
+        env["WINEDLLOVERRIDES"] = ";".join(parts)
+        log.info("ajustes de %s para %s: dll %s", app.id, name, quirks.overrides_string(dlls))
+
+
 def log_path(app: App) -> Path:
     d = paths.logs_dir()
     d.mkdir(parents=True, exist_ok=True)
@@ -378,6 +394,7 @@ def run_umu(app: App, cfg: dict, argv: list[str], cwd: Path | None = None,
         # a que se cerrase; "run" lanza en paralelo con el mismo wineserver.
         verb = "run" if is_busy(app.prefix_path) else "waitforexitandrun"
     env = build_env(app, cfg, verb)
+    apply_app_settings(env, app, argv[0] if argv else "")
     if install_path is not None:
         env["STEAM_COMPAT_INSTALL_PATH"] = str(install_path)
     extra = container_paths(app.prefix_path)

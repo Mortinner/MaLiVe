@@ -153,6 +153,8 @@ malive proton list|update|use
 malive update [--check]         actualizar MaLiVe
 malive set isolate on|off [--app APP]
 malive set host-drives on|off   discos de datos y NAS como unidades (M:, N:…)
+malive dll APP [DLL=MODO…] [--remove DLL…]   DLL ajustadas (p. ej. sapi=d la desactiva)
+malive env APP [VAR=VALOR…] [--remove VAR…]  variables al lanzar (p. ej. PROTON_ENABLE_NVAPI=1)
 malive doctor                   comprobar dependencias e integración
 malive setup                    descargar GE-Proton y runtime y probar que Proton arranca
 malive integrate | unintegrate
