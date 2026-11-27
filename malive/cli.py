@@ -316,6 +316,33 @@ def cmd_hardware(a) -> int:
     return 0
 
 
+def cmd_template(a) -> int:
+    """Plantillas de contenedor: build | rebuild | refill | status."""
+    from . import templates
+    name = a.proton or proton.newest_installed()
+    if a.action == "status" or not name:
+        rows = templates.status()
+        if not rows:
+            print(T("No hay plantillas todavía (se crean al instalar MaLiVe o con «malive template build»).",
+                    "No templates yet (they are created when MaLiVe is installed or with «malive template build»)."))
+        for prot, kind, base, spare in rows:
+            print(f"{prot}  {kind}:  " + T("plantilla ", "template ") + ("✓" if base else "✗")
+                  + T(", repuesto ", ", spare ") + ("✓" if spare else "✗"))
+        return 0
+    try:
+        if a.action in ("build", "rebuild"):
+            print(T(f"Preparando la plantilla {a.kind} para {name} (unos minutos)…",
+                    f"Preparing the {a.kind} template for {name} (a few minutes)…"))
+            templates.build(name, a.kind, force=a.action == "rebuild")
+            print(T("Plantilla lista.", "Template ready."))
+        elif a.action == "refill":
+            templates.refill(name, a.kind)
+    except OSError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+    return 0
+
+
 def cmd_winetricks(a) -> int:
     app = _get_app(a.app)
     cfg = config.load_global()
@@ -381,6 +408,16 @@ def cmd_setup(a) -> int:
               file=sys.stderr)
         return 1
     print(T(f"  Todo correcto ({secs:.0f} s).", f"  All good ({secs:.0f} s)."))
+    # El «Windows base» del que nacen todos los programas, una sola vez
+    from . import templates
+    if not templates.base_ready(name):
+        print(T("» Preparando el Windows base para todos los programas (fuentes, Visual C++; unos minutos)…",
+                "» Preparing the base Windows for every program (fonts, Visual C++; a few minutes)…"))
+        try:
+            templates.build(name)
+        except OSError as e:
+            # No es grave: se reintenta en segundo plano al instalar el primer programa
+            print(f"  {T('Aviso', 'Warning')}: {e}", file=sys.stderr)
     return 0
 
 
@@ -427,6 +464,21 @@ def cmd_auto(a) -> int:
             proton.cleanup(cfg.get("proton_keep_unused", 1))
         except proton.ProtonError as e:
             runner.log.warning("actualización de GE-Proton: %s", e)
+    # Plantilla para el Proton que usarán las apps nuevas; fuera las de versiones viejas
+    from . import templates
+    newest = proton.newest_installed()
+    if newest:
+        templates.cleanup({newest})
+        if not templates.base_ready(newest):
+            try:
+                templates.build(newest)
+            except OSError as e:
+                runner.log.warning("plantilla de %s: %s", newest, e)
+        else:
+            try:
+                templates.refill(newest)
+            except OSError as e:
+                runner.log.warning("repuesto de la plantilla: %s", e)
     # nvidia-libs: misma cadencia semanal, solo si hay tarjeta NVIDIA
     from . import nvidia
     if old and cfg.get("nvidia_mode", "auto") != "off" and nvidia.gpu_present():
@@ -535,6 +587,13 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("program")
     s.add_argument("args", nargs=argparse.REMAINDER)
     s.set_defaults(func=cmd_exec)
+
+    s = sub.add_parser("template", help=T("plantillas de contenedor: status | build | rebuild | refill",
+                                          "container templates: status | build | rebuild | refill"))
+    s.add_argument("action", choices=["status", "build", "rebuild", "refill"])
+    s.add_argument("--proton")
+    s.add_argument("--kind", default="mono")
+    s.set_defaults(func=cmd_template)
 
     s = sub.add_parser("hardware", help=T("ver el equipo y la configuración común a todos los programas",
                                           "show the computer and the configuration shared by every program"))

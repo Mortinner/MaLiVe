@@ -1,5 +1,18 @@
 # Cambios
 
+## 0.1.20
+- **Plantillas de contenedor (idea de Marcos, al estilo VMware).** Un
+  «Windows base» por versión de Proton con fuentes estándar, suavizado
+  ClearType y Visual C++ 2015–2022, preparado una vez. Cada programa nuevo
+  nace de él: se mueve una copia ya preparada (`Template_Mono_to_use.mlv`,
+  instantáneo) y se prepara otra en segundo plano. Se acabaron las fuentes
+  feas y los runtimes que faltan programa por programa.
+- La plantilla se crea durante la instalación de MaLiVe (`malive setup`) y,
+  con cada Proton nuevo, desde el temporizador; las de versiones viejas se
+  borran. Si no la hay, el contenedor se crea como antes y se pide la
+  plantilla para la próxima vez.
+- `malive template status|build|rebuild|refill`.
+
 ## 0.1.19
 - **Una configuración única para todo el equipo.** MaLiVe detecta el
   procesador, la memoria y las gráficas (fabricante, driver, si hay dos) y

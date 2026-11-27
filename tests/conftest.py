@@ -20,6 +20,8 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setenv("XDG_CONFIG_HOME", str(home / ".config"))
     monkeypatch.setenv("XDG_STATE_HOME", str(home / ".local/state"))
     monkeypatch.setenv("MALIVE_NO_GUI", "1")
+    # Plantillas: solo en sus propios tests (no lanzar procesos en segundo plano)
+    monkeypatch.setenv("MALIVE_NO_TEMPLATES", "1")
     # Los tests comprueban mensajes en español; hay tests propios para el inglés
     monkeypatch.setenv("MALIVE_LANG", "es")
     from malive import i18n

@@ -112,6 +112,20 @@ applies the same configuration to every environment:
 With AMD or Intel, hardware video encoding inside Windows programs (AMF,
 Quick Sync) has no Wine translation yet: those programs encode on the CPU.
 
+### Templates: one base Windows for everything
+
+Every program starts from a copy of a "base Windows" prepared once per Proton
+version, with what any normal Windows has: standard fonts, ClearType-style
+smoothing and the Visual C++ runtimes. .NET is covered by Mono, which comes
+with Proton. Like VMware templates:
+
+- `Template_Mono.mlv` is the template and `Template_Mono_to_use.mlv` a copy
+  ready to use (in `~/.local/share/malive/templates/<Proton>/`).
+- When a program is installed, the ready copy is moved to its container
+  (instant) and another one is prepared in the background.
+- The template is built when MaLiVe is installed and, when a new Proton
+  arrives, in the background. `malive template status|build|rebuild`.
+
 ## Automatic updates
 
 A systemd user timer (`malive-auto.timer`) checks the

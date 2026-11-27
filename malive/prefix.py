@@ -12,7 +12,7 @@ import subprocess
 import time
 from pathlib import Path
 
-from . import config, hardware, mounts, nvidia, paths, proton, quirks, ui
+from . import config, hardware, mounts, nvidia, paths, proton, quirks, templates, ui
 from .config import App
 from .i18n import T
 
@@ -448,8 +448,21 @@ def run_umu(app: App, cfg: dict, argv: list[str], cwd: Path | None = None,
 
 
 def create(app: App, cfg: dict) -> None:
-    """Crea el prefijo con Proton (umu-run "") mostrando "Preparando…"."""
+    """Crea el contenedor: de la plantilla de su versión de Proton si la hay
+    (instantáneo, ya con fuentes y runtimes); si no, desde cero con Proton
+    (umu-run "", mostrando "Preparando…") y se pide la plantilla para la próxima."""
     prefix = app.prefix_path
+    try:
+        how = templates.take(app.proton, prefix)
+    except OSError as e:
+        log.warning("plantilla de %s: %s; se crea el contenedor desde cero", app.proton, e)
+        shutil.rmtree(prefix, ignore_errors=True)
+        how = None
+    if how is not None and is_created(prefix):
+        apply_drives(app, cfg)
+        return
+    if not templates.base_ready(app.proton):
+        templates.schedule("build", app.proton)
     prefix.mkdir(parents=True, exist_ok=True)
     with ui.progress(T(f"Preparando el entorno para {app.name}…\n(solo la primera vez; puede tardar un par de minutos)",
                        f"Preparing the environment for {app.name}…\n(first time only; it may take a couple of minutes)")):

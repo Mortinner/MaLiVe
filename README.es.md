@@ -115,6 +115,20 @@ Con AMD o Intel, la codificación de vídeo por hardware dentro de programas de
 Windows (AMF, Quick Sync) no tiene todavía traducción en Wine: esos programas
 codifican por CPU.
 
+### Plantillas: un Windows base para todos
+
+Cada programa nace de una copia de un «Windows base» que se prepara una sola
+vez por versión de Proton, con lo que trae cualquier Windows normal: fuentes
+estándar, suavizado tipo ClearType y los runtimes de Visual C++. .NET lo cubre
+Mono, que viene con Proton. Al estilo de las plantillas de VMware:
+
+- `Template_Mono.mlv` es la plantilla y `Template_Mono_to_use.mlv` una copia
+  ya preparada (en `~/.local/share/malive/templates/<Proton>/`).
+- Al instalar un programa, la copia preparada se mueve a su contenedor
+  (instantáneo) y en segundo plano se prepara otra.
+- La plantilla se crea al instalar MaLiVe y, cuando llega un Proton nuevo, en
+  segundo plano. `malive template status|build|rebuild`.
+
 ## Actualizaciones automáticas
 
 Un temporizador de systemd de usuario (`malive-auto.timer`) busca cada 3 horas
