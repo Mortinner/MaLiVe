@@ -1,5 +1,13 @@
 # Cambios
 
+## 0.1.33
+- **Un .exe ya no se cuela en el contenedor de otro.** Los programas que no
+  son instaladores se reconocían por su carpeta, así que el lanzador de
+  Rockstar, descargado en la misma carpeta que el de Armored Warfare, se
+  instaló dentro del contenedor de este. Ahora se reconocen por el fichero.
+- `malive unlist APP "Nombre"`: quitar una entrada del menú sin desinstalar
+  el programa.
+
 ## 0.1.32
 - **Tiendas y lanzadores de juegos en Juegos** (Battle.net, Steam, Epic, EA
   app, Ubisoft Connect, GOG Galaxy, Riot, Rockstar, Wargaming, MY.GAMES,

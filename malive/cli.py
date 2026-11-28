@@ -375,6 +375,20 @@ def cmd_category(a) -> int:
     return 0
 
 
+def cmd_unlist(a) -> int:
+    """malive unlist APP "Nombre": quitar una entrada del menú sin desinstalar."""
+    app = _get_app(a.app)
+    entry = next((e for e in app.entries if e.name.lower() == a.name.lower() or e.id == a.name), None)
+    if entry is None:
+        names = ", ".join(f"«{e.name}»" for e in app.entries) or "-"
+        sys.exit(T(f"«{a.name}» no es una entrada de «{app.name}». Hay: {names}",
+                   f"«{a.name}» is not an entry of «{app.name}». There are: {names}"))
+    shortcuts.remove_entry(app, entry)
+    app.save()
+    print(T(f"Quitada del menú: «{entry.name}»", f"Removed from the menu: «{entry.name}»"))
+    return 0
+
+
 def cmd_winetricks(a) -> int:
     app = _get_app(a.app)
     cfg = config.load_global()
@@ -628,6 +642,12 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--proton")
     s.add_argument("--kind", default="mono")
     s.set_defaults(func=cmd_template)
+
+    s = sub.add_parser("unlist", help=T("quitar una entrada del menú de una app sin desinstalarla",
+                                        "remove one menu entry of an app without uninstalling it"))
+    s.add_argument("app")
+    s.add_argument("name")
+    s.set_defaults(func=cmd_unlist)
 
     s = sub.add_parser("category", help=T("sección del menú de un programa: malive category APP Game|Multimedia|…|auto",
                                           "menu section of a program: malive category APP Game|Multimedia|…|auto"))

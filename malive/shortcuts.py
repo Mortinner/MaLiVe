@@ -771,6 +771,15 @@ def register(app: App, candidates: list[Candidate]) -> list[Entry]:
     return created
 
 
+def remove_entry(app: App, entry: Entry) -> None:
+    """Quita una sola entrada del menú (y su icono)."""
+    for f in (entry.desktop, entry.icon):
+        if f and Path(f).exists() and (f.startswith(str(paths.data_home())) or f.startswith(str(app.prefix_path))):
+            Path(f).unlink()
+    app.entries = [e for e in app.entries if e.id != entry.id]
+    refresh_menus()
+
+
 def remove_entries(app: App) -> None:
     for e in app.entries:
         for f in (e.desktop, e.icon):

@@ -199,10 +199,13 @@ def find_installed_by_name(name: str) -> App | None:
     return None
 
 
-def find_portable_by_dir(directory: Path) -> App | None:
-    directory = directory.resolve()
+def find_portable_by_source(exe: Path) -> App | None:
+    """La app portable de ese mismo .exe. Por el fichero y no por la carpeta:
+    en Descargas conviven .exe de programas distintos (un lanzador web de un
+    juego y el de otro no deben compartir contenedor)."""
+    exe = exe.resolve()
     for app in all_apps():
-        if app.kind == "portable" and app.source and Path(app.source).resolve().parent == directory:
+        if app.kind == "portable" and app.source and Path(app.source).resolve() == exe:
             return app
     return None
 

@@ -597,3 +597,32 @@ def test_known_game_launchers_and_user_category(tmp_path, env):
     assert "Categories=Game;" in Path(config.load_app(app.id).entries[0].desktop).read_text()
     assert cli.main(["category", app.id, "auto"]) == 0
     assert "Categories=Game;" not in Path(config.load_app(app.id).entries[0].desktop).read_text()
+
+
+def test_two_web_installers_in_same_folder_get_separate_containers(env):
+    """Rockstar se coló en el contenedor de Armored Warfare: ambos lanzadores
+    estaban en la misma carpeta de Descargas."""
+    a = env.downloads / "aw_launcher.exe"
+    b = env.downloads / "rockstar.exe"
+    shutil.copy(FIX / "hello.exe", a)
+    shutil.copy(FIX / "hello.exe", b)
+    assert runner.main([str(a)]) == 0
+    assert runner.main([str(b)]) == 0
+    apps = config.all_apps()
+    assert len(apps) == 2 and apps[0].prefix != apps[1].prefix
+    # Volver a ejecutar el primero reutiliza su contenedor
+    assert runner.main([str(a)]) == 0
+    assert len(config.all_apps()) == 2
+
+
+def test_unlist_one_entry(env):
+    from malive import cli
+    launcher = env.downloads / "aw_launcher.exe"
+    shutil.copy(FIX / "hello.exe", launcher)
+    assert runner.main([str(launcher)]) == 0
+    app = config.all_apps()[0]
+    entry = next(e for e in app.entries if e.name == "Game")
+    assert cli.main(["unlist", app.id, "Game"]) == 0
+    app = config.load_app(app.id)
+    assert [e.name for e in app.entries] == ["Game Launcher"]
+    assert not Path(entry.desktop).exists()

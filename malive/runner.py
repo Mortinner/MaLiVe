@@ -414,7 +414,7 @@ def run_portable(det: detect.Detection, args: list[str]) -> int:
     menú Inicio también aquí: si aparecen accesos, se crean sus entradas en el
     menú como en una instalación normal."""
     cfg = config.load_global()
-    app = config.find_portable_by_dir(det.path.parent)
+    app = config.find_portable_by_source(det.path)
     if app is None:
         app = _new_app(det.name or det.path.stem, "portable", det.path, cfg)
     _ensure_ready(app, cfg)
