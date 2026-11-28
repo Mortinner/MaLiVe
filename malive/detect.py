@@ -40,7 +40,15 @@ GENERIC_PRODUCT_NAMES = {
     "inno setup", "nullsoft install system", "nsis", "installshield", "wix toolset",
     "setup", "installer", "install", "7-zip", "7-zip sfx", "setup factory",
     "advanced installer", "installaware", "windows installer", "self-extracting archive",
+    # Instaladores/lanzadores que copian los datos de versión de Windows (Rockstar)
+    "microsoft windows operating system", "windows operating system", "operating system",
+    "microsoft windows", "windows", "bootstrapper", "web installer", "launcher", "application",
 }
+
+
+def _generic(value: str) -> bool:
+    norm = re.sub(r"[®™©]", "", value).lower()
+    return re.sub(r"\s+", " ", norm).strip() in GENERIC_PRODUCT_NAMES
 
 NAME_HINT = re.compile(r"(^|[\W_])(setup|install|installer|instalador|instalar|instalacion)([\W_\d]|$)", re.I)
 
@@ -118,9 +126,9 @@ def clean_product_name(value: str) -> str:
 def _product_name(version: dict[str, str], path: Path) -> str:
     for key in ("ProductName", "FileDescription"):
         value = version.get(key, "").strip()
-        if value and value.lower() not in GENERIC_PRODUCT_NAMES:
+        if value and not _generic(value):
             cleaned = clean_product_name(value)
-            if cleaned and cleaned.lower() not in GENERIC_PRODUCT_NAMES:
+            if cleaned and not _generic(cleaned):
                 return cleaned[:80]
     return name_from_path(path)
 

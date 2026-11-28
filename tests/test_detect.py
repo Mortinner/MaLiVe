@@ -1,4 +1,5 @@
 import pytest
+from pathlib import Path
 
 from conftest import FIX
 from malive import detect
@@ -78,3 +79,9 @@ def test_generic_setup_uses_folder_name(tmp_path):
 )
 def test_clean_product_name(raw, expected):
     assert detect.clean_product_name(raw) == expected
+
+
+def test_generic_windows_product_name_falls_back_to_file_name():
+    from malive import detect
+    v = {"ProductName": "Microsoft® Windows® Operating System", "FileDescription": "Windows® installer"}
+    assert detect._product_name(v, Path("/d/Rockstar-Games-Launcher.exe")) == "Rockstar Games Launcher"

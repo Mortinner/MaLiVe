@@ -1,5 +1,10 @@
 # Cambios
 
+## 0.1.34
+- Nombres genéricos de Windows en los datos de versión («Microsoft® Windows®
+  Operating System», que lleva el instalador de Rockstar) ya no se usan como
+  nombre del programa: se toma el del fichero («Rockstar Games Launcher»).
+
 ## 0.1.33
 - **Un .exe ya no se cuela en el contenedor de otro.** Los programas que no
   son instaladores se reconocían por su carpeta, así que el lanzador de
