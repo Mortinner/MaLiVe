@@ -116,6 +116,7 @@ class App:
     source: str = ""  # instalador o ejecutable original
     created: str = ""
     isolate: bool | None = None  # None = usar el valor global
+    category: str = ""  # sección del menú elegida por el usuario (Categories=…); vacío = automática
     nvidia: bool | None = None  # CUDA/NVENC en Proton; None = valor global
     dll_overrides: dict[str, str] = field(default_factory=dict)  # {"sapi": "d"}: WINEDLLOVERRIDES
     env: dict[str, str] = field(default_factory=dict)  # variables extra al lanzar (PROTON_*, QT_*…)

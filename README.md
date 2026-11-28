@@ -185,6 +185,7 @@ malive update [--check]         update MaLiVe
 malive set isolate on|off [--app APP]
 malive set host-drives on|off   data disks and NAS as drives (M:, N:…)
 malive hardware                 the computer and the configuration shared by every program
+malive category APP Game|Multimedia|…|auto   menu section (if the automatic one is wrong)
 malive set nvidia auto|on|off   NVIDIA CUDA/NVENC for every program (auto: if there is an NVIDIA card)
 malive nvidia [APP on|off|default]   exception for one specific program
 malive dll APP [DLL=MODE…] [--remove DLL…]   DLL overrides (e.g. sapi=d disables it)

@@ -441,11 +441,30 @@ _GAME_FILES = {
 _GAME_DIRS = {"easyanticheat", "battleye", "engine", "binaries", "paks"}
 
 
+# Tiendas y lanzadores de juegos: por dentro son programas normales (a menudo
+# Chromium), sin pistas de juego. Relación corta que se mantiene una vez.
+GAME_LAUNCHER_EXES = {
+    "battle.net.exe", "battle.net launcher.exe", "steam.exe", "epicgameslauncher.exe",
+    "eadesktop.exe", "ealauncher.exe", "origin.exe", "ubisoftconnect.exe", "upc.exe", "uplay.exe",
+    "galaxyclient.exe", "riotclientservices.exe", "riotclientux.exe", "rockstarlauncher.exe",
+    "wgc.exe", "gamecenter.exe", "itch.exe", "amazon games.exe", "amazongames.exe",
+    "bethesdanetlauncher.exe", "xboxpcapp.exe", "playnite.desktopapp.exe", "playnite.fullscreenapp.exe",
+    "legacygames.exe", "glyphclientapp.exe",
+}
+GAME_LAUNCHER_DIRS = ("battle.net", "ea games", "electronic arts", "ubisoft", "ubisoft game launcher",
+                      "rockstar games", "riot games", "gog galaxy", "gog games", "wargaming.net",
+                      "my.games", "epic games", "steam", "steamapps", "itch", "amazon games",
+                      "games", "bethesda.net launcher", "playnite")
+
+
 def looks_like_game(exe: Path) -> bool:
-    """Heurística barata (sin recorrer el disco entero): la ruta, el nombre del
-    .exe o lo que hay junto a él."""
+    """Heurística barata (sin recorrer el disco entero): lanzadores conocidos,
+    la ruta, el nombre del .exe o lo que hay junto a él."""
+    if exe.name.lower() in GAME_LAUNCHER_EXES:
+        return True
     low = str(exe).lower().replace("\\", "/")
-    if re.search(r"/(games|steamapps|epic games|riot games|gog games)/", low) or low.endswith("-shipping.exe"):
+    parts = set(low.split("/"))
+    if parts & set(GAME_LAUNCHER_DIRS) or low.endswith("-shipping.exe"):
         return True
     for d in (exe.parent, exe.parent.parent):
         try:
@@ -457,7 +476,21 @@ def looks_like_game(exe: Path) -> bool:
     return False
 
 
-def _categories(entry: Entry, mimes: list[str]) -> str:
+# Secciones que el usuario puede elegir con `malive category` (freedesktop)
+USER_CATEGORIES = {
+    "game": "Game;", "games": "Game;", "juegos": "Game;",
+    "multimedia": "AudioVideo;", "audiovideo": "AudioVideo;", "video": "AudioVideo;Video;", "audio": "AudioVideo;Audio;",
+    "graphics": "Graphics;", "graficos": "Graphics;", "gráficos": "Graphics;",
+    "office": "Office;", "oficina": "Office;", "development": "Development;", "desarrollo": "Development;",
+    "network": "Network;", "internet": "Network;", "education": "Education;", "educacion": "Education;",
+    "educación": "Education;", "system": "System;", "sistema": "System;",
+    "utility": "Utility;", "utilities": "Utility;", "utilidades": "Utility;",
+}
+
+
+def _categories(entry: Entry, mimes: list[str], app: App | None = None) -> str:
+    if app is not None and app.category:
+        return app.category
     cats = assoc.categories_for(mimes)
     if cats == "Utility;" and looks_like_game(Path(entry.exe)):
         return "Game;"
@@ -479,7 +512,7 @@ def desktop_text(app: App, entry: Entry) -> str:
         f"Exec={_desktop_escape(exec_quote(malive_run_path()))} --app {app.id} --entry {entry.id} %F",
         f"Icon={entry.icon or 'application-x-ms-dos-executable'}",
         "Terminal=false",
-        f"Categories={_categories(entry, mimes)}",
+        f"Categories={_categories(entry, mimes, app)}",
         f"StartupWMClass={_desktop_escape(wmclass)}",
         *([f"MimeType={';'.join(mimes)};"] if mimes else []),
         f"X-MaLiVe-App={app.id}",

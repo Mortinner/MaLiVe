@@ -1,5 +1,15 @@
 # Cambios
 
+## 0.1.32
+- **Tiendas y lanzadores de juegos en Juegos** (Battle.net, Steam, Epic, EA
+  app, Ubisoft Connect, GOG Galaxy, Riot, Rockstar, Wargaming, MY.GAMES,
+  itch.io, Amazon Games, Bethesda, Xbox, Playnite…): por dentro son
+  programas normales, sin pistas de juego, así que van en una relación corta
+  de ejecutables y carpetas conocidos.
+- `malive category APP Game|Multimedia|Graphics|Office|…|auto`: elegir a mano
+  la sección del menú si la automática no acierta; se respeta al rehacer los
+  accesos.
+
 ## 0.1.31
 - **Los iconos viven dentro del contenedor, en `C:\\icons`** (idea de Marcos):
   al desinstalar un programa se borran con él y el contenedor queda

@@ -352,6 +352,29 @@ def cmd_template(a) -> int:
     return 0
 
 
+def cmd_category(a) -> int:
+    """malive category APP [SECCIÓN|auto]: la sección del menú de un programa."""
+    app = _get_app(a.app)
+    if not a.section:
+        print(T(f"Sección de «{app.name}»: {app.category or 'automática'}",
+                f"Menu section of «{app.name}»: {app.category or 'automatic'}"))
+        return 0
+    key = a.section.strip().lower()
+    if key in ("auto", "automatica", "automática", "automatic"):
+        app.category = ""
+    elif key in shortcuts.USER_CATEGORIES:
+        app.category = shortcuts.USER_CATEGORIES[key]
+    else:
+        names = "Game, Multimedia, Graphics, Office, Development, Network, Education, System, Utility, auto"
+        sys.exit(T(f"Sección desconocida «{a.section}». Opciones: {names}",
+                   f"Unknown section «{a.section}». Options: {names}"))
+    app.save()
+    if shortcuts.rewrite_app(app):
+        shortcuts.refresh_menus()
+    print(T(f"«{app.name}» → {app.category or 'automática'}", f"«{app.name}» → {app.category or 'automatic'}"))
+    return 0
+
+
 def cmd_winetricks(a) -> int:
     app = _get_app(a.app)
     cfg = config.load_global()
@@ -605,6 +628,12 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--proton")
     s.add_argument("--kind", default="mono")
     s.set_defaults(func=cmd_template)
+
+    s = sub.add_parser("category", help=T("sección del menú de un programa: malive category APP Game|Multimedia|…|auto",
+                                          "menu section of a program: malive category APP Game|Multimedia|…|auto"))
+    s.add_argument("app")
+    s.add_argument("section", nargs="?")
+    s.set_defaults(func=cmd_category)
 
     s = sub.add_parser("hardware", help=T("ver el equipo y la configuración común a todos los programas",
                                           "show the computer and the configuration shared by every program"))

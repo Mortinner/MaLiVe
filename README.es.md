@@ -187,6 +187,7 @@ malive update [--check]         actualizar MaLiVe
 malive set isolate on|off [--app APP]
 malive set host-drives on|off   discos de datos y NAS como unidades (M:, N:…)
 malive hardware                 el equipo y la configuración común a todos los programas
+malive category APP Game|Multimedia|…|auto   sección del menú (si la automática no acierta)
 malive set nvidia auto|on|off   CUDA/NVENC de NVIDIA para todos (auto: si hay tarjeta NVIDIA)
 malive nvidia [APP on|off|default]   excepción para un programa concreto
 malive dll APP [DLL=MODO…] [--remove DLL…]   DLL ajustadas (p. ej. sapi=d la desactiva)

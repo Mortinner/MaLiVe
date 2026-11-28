@@ -577,3 +577,23 @@ def test_icons_live_inside_the_container(env, monkeypatch):
     entry = config.load_app(app.id).entries[0]
     assert entry.icon == str(app.prefix_path / "drive_c" / "icons" / f"{entry.id}.png")
     assert not legacy.exists() and Path(entry.icon).read_bytes() == b"old"
+
+
+def test_known_game_launchers_and_user_category(tmp_path, env):
+    from malive.shortcuts import looks_like_game
+    bn = tmp_path / "drive_c/Program Files (x86)/Battle.net/Battle.net Launcher.exe"
+    assert looks_like_game(bn)
+    assert looks_like_game(tmp_path / "x/EpicGamesLauncher.exe")
+    assert not looks_like_game(tmp_path / "drive_c/Program Files/Notepad++/notepad++.exe")
+    # El usuario manda: malive category
+    from malive import cli
+    setup = copy_fixture(env, "TestApp-2.1.0-x64-setup.exe")
+    assert runner.main([str(setup)]) == 0
+    app = config.all_apps()[0]
+    assert cli.main(["category", app.id, "juegos"]) == 0
+    text = Path(config.load_app(app.id).entries[0].desktop).read_text()
+    assert "Categories=Game;" in text
+    assert cli.main(["refresh"]) == 0  # se respeta al rehacer los accesos
+    assert "Categories=Game;" in Path(config.load_app(app.id).entries[0].desktop).read_text()
+    assert cli.main(["category", app.id, "auto"]) == 0
+    assert "Categories=Game;" not in Path(config.load_app(app.id).entries[0].desktop).read_text()
