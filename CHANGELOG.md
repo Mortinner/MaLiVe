@@ -1,5 +1,9 @@
 # Cambios
 
+## 0.1.35
+- La confirmación de desinstalar aclara que lo que haya en tus carpetas y
+  discos (D:, E:, M:, N:…), como un juego instalado en otro disco, no se toca.
+
 ## 0.1.34
 - Nombres genéricos de Windows en los datos de versión («Microsoft® Windows®
   Operating System», que lleva el instalador de Rockstar) ya no se usan como

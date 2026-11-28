@@ -3,4 +3,4 @@
 Ejecuta programas de Windows con doble clic, usando umu-launcher + GE-Proton.
 """
 
-__version__ = "0.1.34"
+__version__ = "0.1.35"

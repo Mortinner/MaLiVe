@@ -130,10 +130,14 @@ def uninstall(app_id: str) -> int:
     if not ui.question(
         T(f"¿Desinstalar «{app.name}»?{also}\n\n"
           "Se borrarán el programa y sus datos guardados dentro de él (configuración, "
-          "archivos en «Mis documentos» de Windows…).",
+          "archivos en «Mis documentos» de Windows…).\n"
+          "Lo que haya en tus carpetas y discos (D:, E:, M:, N:…), por ejemplo un juego "
+          "instalado en otro disco, no se toca.",
           f"Uninstall «{app.name}»?{also}\n\n"
           "The program and the data saved inside it (settings, files in the Windows "
-          "«My Documents» folder…) will be deleted."),
+          "«My Documents» folder…) will be deleted.\n"
+          "Anything in your folders and disks (D:, E:, M:, N:…), such as a game installed "
+          "on another disk, is not touched."),
         title=T("Desinstalar", "Uninstall"), yes=T("Desinstalar", "Uninstall"), no=T("Cancelar", "Cancel"),
     ):
         return 1
