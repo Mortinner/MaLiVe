@@ -522,10 +522,10 @@ def desktop_text(app: App, entry: Entry) -> str:
         "Actions=malive-uninstall;",
         "",
         "[Desktop Action malive-uninstall]",
-        f"Name={_desktop_escape(f'Uninstall {app.name}')}",
-        f"Name[es]={_desktop_escape(f'Desinstalar {app.name}')}",
+        f"Name={_desktop_escape(f'Uninstall {entry.name}')}",
+        f"Name[es]={_desktop_escape(f'Desinstalar {entry.name}')}",
         "Icon=edit-delete",
-        f"Exec={_desktop_escape(exec_quote(malive_run_path()))} --uninstall {app.id}",
+        f"Exec={_desktop_escape(exec_quote(malive_run_path()))} --uninstall {app.id} --entry {entry.id}",
         "",
     ]
     return "\n".join(lines)

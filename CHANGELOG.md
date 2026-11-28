@@ -1,5 +1,15 @@
 # Cambios
 
+## 0.1.36
+- **Desinstalar funciona como en Windows.** «Desinstalar Diablo IV» desinstala
+  solo Diablo IV, con su propio desinstalador (el que dejó en «Agregar o quitar
+  programas» del registro del contenedor). Battle.net, Hearthstone y el resto
+  se quedan. El contenedor solo se borra al desinstalar su último programa, y
+  si reinstalas el lanzador vuelve al mismo contenedor, con tus juegos.
+- Si un programa no dejó desinstalador, se quita del menú y sus archivos se
+  quedan en el contenedor hasta que se desinstale el último.
+- `malive remove APP` sigue borrando el contenedor entero de una vez.
+
 ## 0.1.35
 - La confirmación de desinstalar aclara que lo que haya en tus carpetas y
   discos (D:, E:, M:, N:…), como un juego instalado en otro disco, no se toca.

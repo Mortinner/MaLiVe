@@ -7,7 +7,7 @@ from pathlib import Path
 import pylnk3
 
 from conftest import FIX
-from malive import config, paths, prefix as pfx, runner
+from malive import config, paths, prefix as pfx, runner, ui
 
 
 def copy_fixture(env, name, dest_name=None):
@@ -237,7 +237,7 @@ def test_uninstall_from_menu_action(env, monkeypatch):
     assert "Actions=malive-uninstall;" in text
     assert "[Desktop Action malive-uninstall]" in text
     assert "Name=Uninstall Test App" in text and "Name[es]=Desinstalar Test App" in text
-    assert f"Exec=/opt/test/malive-run --uninstall {app.id}" in text
+    assert f"Exec=/opt/test/malive-run --uninstall {app.id} --entry {app.entries[0].id}" in text
 
     # el usuario dice que no
     monkeypatch.setattr(ui, "question", lambda *a, **k: False)
@@ -626,3 +626,39 @@ def test_unlist_one_entry(env):
     app = config.load_app(app.id)
     assert [e.name for e in app.entries] == ["Game Launcher"]
     assert not Path(entry.desktop).exists()
+
+
+def test_uninstall_one_program_keeps_the_others_and_container(env, monkeypatch):
+    """Como en Windows: desinstalar Diablo IV no se lleva Battle.net; el
+    contenedor solo se borra con el último programa."""
+    monkeypatch.setattr(ui, "question", lambda *a, **k: True)
+    launcher = env.downloads / "aw_launcher.exe"
+    shutil.copy(FIX / "hello.exe", launcher)
+    assert runner.main([str(launcher)]) == 0
+    app = config.all_apps()[0]
+    game = next(e for e in app.entries if e.name == "Game")
+    keep = next(e for e in app.entries if e.name == "Game Launcher")
+    assert f"--uninstall {app.id} --entry {game.id}" in Path(game.desktop).read_text()
+    assert "Name[es]=Desinstalar Game" in Path(game.desktop).read_text()
+
+    assert runner.main(["--uninstall", app.id, "--entry", game.id]) == 0
+    # Se usó su desinstalador (registrado en «Agregar o quitar programas»)
+    assert env.calls()[-1]["argv"][0].endswith("Program Files/Game/uninst.exe")
+    assert not Path(game.exe).exists() and not Path(game.desktop).exists()
+    app = config.load_app(app.id)
+    assert [e.name for e in app.entries] == ["Game Launcher"] and app.prefix_path.exists()
+    assert Path(keep.desktop).exists()
+
+    # El último programa se lleva el contenedor
+    assert runner.main(["--uninstall", app.id, "--entry", keep.id]) == 0
+    assert config.all_apps() == [] and not app.prefix_path.exists()
+
+
+def test_split_uninstall_commands():
+    from malive.uninstallers import split_command
+    assert split_command('"C:\\Program Files (x86)\\Battle.net\\Battle.net Uninstaller.exe" --lang=enUS '
+                         '--uid=fenris --displayname="Diablo IV"') == (
+        "C:\\Program Files (x86)\\Battle.net\\Battle.net Uninstaller.exe",
+        ["--lang=enUS", "--uid=fenris", "--displayname=Diablo IV"])
+    assert split_command("MsiExec.exe /X{1234-ABCD}") == ("MsiExec.exe", ["/X{1234-ABCD}"])
+    assert split_command("C:\\Games\\x\\unins000.exe /SILENT") == ("C:\\Games\\x\\unins000.exe", ["/SILENT"])

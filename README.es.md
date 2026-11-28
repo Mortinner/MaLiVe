@@ -74,7 +74,12 @@ si hay varios, pregunta cuáles poner en el menú. Si no se instaló nada
 (instalador cancelado) y el prefijo era nuevo, lo borra.
 
 Cada acceso del menú tiene la acción **Desinstalar** en su clic derecho, que
-borra el programa junto con su prefijo.
+funciona como en Windows: desinstala **solo ese programa**, con su propio
+desinstalador del registro del contenedor («Agregar o quitar programas»). Los
+demás programas del mismo contenedor se quedan (desinstalar Diablo IV deja
+Battle.net y Hearthstone, y si reinstalas Battle.net más tarde vuelve al mismo
+contenedor, donde siguen tus juegos). El contenedor solo se borra al
+desinstalar su último programa. `malive remove APP` borra un contenedor entero.
 
 Los programas instalados también salen en **Abrir con** del gestor de archivos
 para los tipos de fichero que su instalador registró en Windows (se leen del

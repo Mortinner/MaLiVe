@@ -99,6 +99,12 @@ if b"NullsoftInst" in data:
     time.sleep(float(os.environ.get("FAKE_APP_RUNS", "0")))
     sys.exit(0)
 
+if exe.name == "uninst.exe":
+    # Desinstalador de «Game»: borra su carpeta y su acceso
+    shutil.rmtree(c / "Program Files/Game", ignore_errors=True)
+    shutil.rmtree(c / "users/steamuser/AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Game", ignore_errors=True)
+    sys.exit(0)
+
 if exe.name == "aw_launcher.exe":
     # Lanzador/instalador web: descarga e instala el juego con su propio .msi
     dest = c / "Program Files/Game"
@@ -107,6 +113,12 @@ if exe.name == "aw_launcher.exe":
     sm = c / "users/steamuser/AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Game"
     sm.mkdir(parents=True, exist_ok=True)
     pylnk3.for_file(r"C:\Program Files\Game\game.exe", str(sm / "Game.lnk"), work_dir=r"C:\Program Files\Game")
+    shutil.copy(payload, dest / "uninst.exe")
+    with open(prefix / "system.reg", "a", encoding="utf-8") as reg:
+        reg.write('\n[Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Uninstall\\\\Game] 1700000000\n'
+                  '"DisplayName"="Game"\n'
+                  '"InstallLocation"="C:\\\\Program Files\\\\Game"\n'
+                  '"UninstallString"="\\"C:\\\\Program Files\\\\Game\\\\uninst.exe\\" /S"\n')
     # Como el .msi de Armored Warfare: un acceso en la carpeta del programa
     games = c / "Games"
     games.mkdir(exist_ok=True)

@@ -116,11 +116,16 @@ def launch(app: App, exe: Path, args: list[str], workdir: Path | None = None,
     return rc
 
 
-def uninstall(app_id: str) -> int:
-    """Desinstalación desde el menú: confirma y borra la app con su entorno."""
+def uninstall(app_id: str, entry_id: str | None = None) -> int:
+    """Desinstalación desde el menú, como en Windows: se desinstala ese programa
+    (con su propio desinstalador) y los demás del contenedor se quedan. El
+    contenedor solo se borra cuando ya no queda ningún programa en él."""
     app = config.load_app(app_id)
     if app is None:
         raise UserError(T("Este programa ya no está instalado.", "This program is no longer installed."))
+    entry = next((e for e in app.entries if e.id == entry_id), None) if entry_id else None
+    if entry is not None and len(app.entries) > 1:
+        return uninstall_entry(app, entry)
     if pfx.is_busy(app.prefix_path):
         raise UserError(T(f"«{app.name}» está abierto. Ciérralo y vuelve a intentarlo.",
                           f"«{app.name}» is open. Close it and try again."))
@@ -144,6 +149,59 @@ def uninstall(app_id: str) -> int:
     discard_app(app)
     log.info("app %s desinstalada", app.id)
     ui.notify(T(f"«{app.name}» se ha desinstalado.", f"«{app.name}» has been uninstalled."))
+    return 0
+
+
+def uninstall_entry(app: App, entry: config.Entry) -> int:
+    """Desinstala un programa del contenedor y deja los demás."""
+    from . import uninstallers
+    others = ", ".join(f"«{e.name}»" for e in app.entries if e.id != entry.id)
+    prefix = app.prefix_path
+    exe_win = pfx.unix_to_windows(prefix, Path(entry.exe)) or ""
+    unins = uninstallers.match(uninstallers.read(prefix), exe_win, entry.name) if exe_win else None
+    how = (T("Se usará su propio desinstalador, como en Windows.", "Its own uninstaller will be used, as on Windows.")
+           if unins else
+           T("No tiene desinstalador registrado: se quitará del menú y sus archivos se quedarán en el "
+             "contenedor hasta que desinstales el último programa.",
+             "It has no registered uninstaller: it will be removed from the menu and its files will stay in "
+             "the container until you uninstall the last program."))
+    if not ui.question(
+        T(f"¿Desinstalar «{entry.name}»?\n\n{how}\n\nLos demás programas de este contenedor ({others}) se quedan.",
+          f"Uninstall «{entry.name}»?\n\n{how}\n\nThe other programs in this container ({others}) stay."),
+        title=T("Desinstalar", "Uninstall"), yes=T("Desinstalar", "Uninstall"), no=T("Cancelar", "Cancel"),
+    ):
+        return 1
+    if unins:
+        cfg = config.load_global()
+        _ensure_ready(app, cfg)
+        pfx.apply_drives(app, cfg)
+        exe, args = uninstallers.split_command(unins.command or unins.quiet_command)
+        unix = pfx.windows_to_unix(prefix, exe)
+        argv = [str(unix) if unix is not None and unix.is_file() else exe, *args]
+        log.info("desinstalando %s/%s con %s", app.id, entry.id, argv)
+        pfx.run_umu(app, cfg, argv, cwd=prefix)
+        if pfx.is_busy(prefix):
+            pfx.wait_idle(prefix)
+        if Path(entry.exe).exists():
+            # Cancelado o fallido: el programa sigue ahí, la entrada también
+            ui.notify(T(f"«{entry.name}» no se ha desinstalado.", f"«{entry.name}» was not uninstalled."))
+            return 1
+    removed = [entry]
+    # Un desinstalador puede llevarse más de un programa (un juego y su lanzador)
+    removed += [e for e in app.entries if e.id != entry.id and unins and not Path(e.exe).exists()]
+    for e in removed:
+        shortcuts.remove_entry(app, e)
+    if not app.entries:
+        discard_app(app)
+        log.info("app %s desinstalada (era su último programa)", app.id)
+        ui.notify(T(f"«{entry.name}» se ha desinstalado. Era el último programa de su contenedor, "
+                    "que también se ha borrado.",
+                    f"«{entry.name}» has been uninstalled. It was the last program in its container, "
+                    "which has been deleted too."))
+        return 0
+    app.save()
+    log.info("%s/%s desinstalado; quedan %s", app.id, entry.id, [e.name for e in app.entries])
+    ui.notify(T(f"«{entry.name}» se ha desinstalado.", f"«{entry.name}» has been uninstalled."))
     return 0
 
 
@@ -473,7 +531,7 @@ def main(argv: list[str] | None = None) -> int:
     opts = build_parser().parse_args(argv)
     try:
         if opts.uninstall:
-            return uninstall(opts.uninstall)
+            return uninstall(opts.uninstall, opts.entry)
         if opts.app:
             if not opts.entry:
                 raise UserError(T("Falta --entry", "--entry is missing"))

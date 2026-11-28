@@ -71,8 +71,13 @@ If the installer creates no shortcuts, MaLiVe looks for new `.exe` files and,
 if there are several, asks which ones to add to the menu. If nothing was
 installed (cancelled installer) and the prefix was new, it is removed.
 
-Each menu entry has an **Uninstall** action in its right-click menu, which
-removes the app together with its prefix.
+Each menu entry has an **Uninstall** action in its right-click menu that
+works like Windows: it uninstalls **that program only**, with its own
+uninstaller from the prefix's registry ("Add or remove programs"). The other
+programs in the same prefix stay (uninstalling Diablo IV keeps Battle.net and
+Hearthstone, and reinstalling Battle.net later goes back into the same prefix,
+where your games still are). The prefix is deleted only when its last program
+is uninstalled. `malive remove APP` deletes a whole prefix at once.
 
 Installed programs also appear in your file manager's **Open with** menu
 for the file types their installer registered in Windows (read from the
