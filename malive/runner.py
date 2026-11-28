@@ -246,7 +246,53 @@ def run_entry(app_id: str, entry_id: str, docs: list[Path] | None = None) -> int
             shortcuts.refresh_menus()
         return 1
     workdir = Path(entry.workdir) if entry.workdir else None
+    if not docs:
+        from . import launchers
+        h = launchers.handoff(app, exe)
+        if h is not None:
+            return launch_through(app, entry, h)
     return launch(app, exe, list(entry.args), workdir, docs=docs, entry_id=entry.id)
+
+
+# Si el lanzador no estaba abierto, su orden solo lo abre (inicio de sesión,
+# actualización…) y no el juego: se repite hasta que el juego arranca.
+RESEND_AT = (15, 30, 50, 75, 105, 140, 180)
+
+
+def launch_through(app: App, entry: config.Entry, h) -> int:
+    """Abre un juego a través de su lanzador (Battle.net), como al pulsar «Jugar»."""
+    import threading
+    import time as _time
+    from . import launchers
+    prefix = app.prefix_path
+    was_running = launchers.running(prefix, h.launcher.name)
+    log.info("%s: abriendo %s con %s %s (lanzador %s)", entry.id, h.game_dir, h.launcher, h.args,
+             "ya abierto" if was_running else "cerrado")
+    state = {"start": _time.monotonic(), "next": 0, "done": was_running}
+
+    def resend() -> None:
+        try:
+            pfx.run_umu(app, config.load_global(), [str(h.launcher), *h.args], cwd=h.launcher.parent,
+                        verb="run", entry_id=entry.id)
+        except Exception as e:  # noqa: BLE001
+            log.warning("no se pudo repetir la orden del lanzador: %s", e)
+
+    def tick() -> None:
+        if state["done"]:
+            return
+        if launchers.game_running(prefix, h):
+            state["done"] = True
+            log.info("%s: el juego ya está en marcha", entry.id)
+            return
+        elapsed = _time.monotonic() - state["start"]
+        if state["next"] >= len(RESEND_AT):
+            state["done"] = True
+            return
+        if elapsed >= RESEND_AT[state["next"]]:
+            state["next"] += 1
+            threading.Thread(target=resend, daemon=True).start()
+
+    return launch(app, h.launcher, list(h.args), h.launcher.parent, entry_id=entry.id, on_tick=tick)
 
 
 # --------------------------------------------------------------------------

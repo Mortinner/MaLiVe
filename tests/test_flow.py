@@ -681,3 +681,54 @@ def test_each_program_gets_its_own_window_class(env):
         assert f"StartupWMClass=steam_app_{gameid[4:]}" in Path(e.desktop).read_text()
         ids.add(gameid)
     assert len(ids) == len(app.entries) > 1
+
+
+def _pb(num: int, payload: bytes) -> bytes:
+    def varint(n: int) -> bytes:
+        out = b""
+        while True:
+            b, n = n & 0x7F, n >> 7
+            out += bytes([b | (0x80 if n else 0)])
+            if not n:
+                return out
+    return varint(num << 3 | 2) + varint(len(payload)) + payload
+
+
+def _product_db(*products: tuple[str, str, str]) -> bytes:
+    db = b""
+    for uid, code, path in products:
+        settings = _pb(1, path.encode()) + _pb(2, b"EU")
+        db += _pb(1, _pb(1, uid.encode()) + _pb(2, code.encode()) + _pb(3, settings))
+    return db
+
+
+def test_battlenet_game_entry_opens_the_game(env):
+    """Los accesos de Blizzard solo abren Battle.net en la pestaña del juego;
+    desde el menú de MaLiVe se abre el juego (--exec="launch WTCG")."""
+    from malive import launchers
+    launcher = env.downloads / "aw_launcher.exe"
+    shutil.copy(FIX / "hello.exe", launcher)
+    assert runner.main([str(launcher)]) == 0
+    app = config.all_apps()[0]
+    c = pfx.drive_c(app.prefix_path)
+    bnet = c / "Program Files (x86)/Battle.net/Battle.net.exe"
+    hs = c / "Program Files (x86)/Hearthstone/Hearthstone Beta Launcher.exe"
+    for f in (bnet, hs):
+        f.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(FIX / "hello.exe", f)
+    db = c / "ProgramData/Battle.net/Agent/product.db"
+    db.parent.mkdir(parents=True)
+    db.write_bytes(_product_db(("battle.net", "bna", "C:/Program Files (x86)/Battle.net"),
+                               ("hs_beta", "hsb", "C:/Program Files (x86)/Hearthstone")))
+
+    assert launchers.battlenet_products(app.prefix_path) == [("hsb", "C:/Program Files (x86)/Hearthstone")]
+    assert launchers.handoff(app, bnet) is None  # Battle.net mismo: se abre tal cual
+    h = launchers.handoff(app, hs)
+    assert h.launcher == bnet and h.args == ["--exec=launch WTCG"]
+
+    app.entries.append(config.Entry(id="hearthstone", name="Hearthstone", exe=str(hs)))
+    app.save()
+    assert runner.main(["--app", app.id, "--entry", "hearthstone"]) == 0
+    call = env.calls()[-1]
+    assert call["argv"][0].endswith("Battle.net/Battle.net.exe") and call["argv"][1:] == ["--exec=launch WTCG"]
+    assert call["gameid"] == f"umu-{pfx.window_id(app, 'hearthstone')}"

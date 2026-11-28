@@ -1,5 +1,13 @@
 # Cambios
 
+## 0.1.38
+- **Los juegos de Battle.net se abren desde el menú.** Los accesos que crea
+  Battle.net (Hearthstone, Diablo IV…) solo abren Battle.net en la pestaña del
+  juego y esperan a que pulses «Jugar», también en Windows. Ahora la entrada
+  del menú abre el juego: si Battle.net no estaba abierto, lo abre (inicio de
+  sesión, actualizaciones…) y repite la orden hasta que el juego arranca.
+  Los juegos y su código salen del product.db de Battle.net, sin nada por juego.
+
 ## 0.1.37
 - **Cada programa con su botón en la barra de tareas.** El Wine de Proton
   llama a todas sus ventanas «steam_app_<id>», y MaLiVe usaba el mismo id para
