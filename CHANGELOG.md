@@ -8,6 +8,9 @@
   menú tiene su propio id, y el escritorio asocia cada ventana a su entrada.
   Los juegos que abre un lanzador comparten el botón del lanzador. Hay que
   cerrar y volver a abrir los programas que ya estuvieran abiertos.
+- Descripciones de piezas de Windows que algunos .exe copian («ApiSet Stub
+  DLL», en el lanzador de Rockstar) ya no se usan como nombre del programa;
+  los contenedores que ya lo tenían toman el nombre de su programa.
 
 ## 0.1.36
 - **Desinstalar funciona como en Windows.** «Desinstalar Diablo IV» desinstala
