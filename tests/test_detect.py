@@ -85,3 +85,9 @@ def test_generic_windows_product_name_falls_back_to_file_name():
     from malive import detect
     v = {"ProductName": "Microsoft® Windows® Operating System", "FileDescription": "Windows® installer"}
     assert detect._product_name(v, Path("/d/Rockstar-Games-Launcher.exe")) == "Rockstar Games Launcher"
+
+
+def test_windows_component_descriptions_are_generic():
+    from malive.detect import _generic
+    assert _generic("ApiSet Stub DLL") and _generic("Microsoft® Windows® Operating System")
+    assert not _generic("Rockstar Games Launcher") and not _generic("Notepad++")

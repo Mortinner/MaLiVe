@@ -34,7 +34,9 @@ def test_install_nsis(env):
 
     desktop = Path(entry.desktop).read_text()
     assert "Exec=/opt/test/malive-run --app test-app --entry test-app" in desktop
-    assert "StartupWMClass=hello.exe" in desktop
+    # Cada programa con su clase de ventana (su botón en la barra de tareas):
+    # el Wine de Proton usa «steam_app_<SteamAppId>», y umu toma el id de GAMEID
+    assert "StartupWMClass=steam_app_malive_test_app_test_app" in desktop
     if shutil.which("icotool"):
         assert entry.icon and entry.icon.endswith(".png") and Path(entry.icon).is_file()
 
@@ -662,3 +664,20 @@ def test_split_uninstall_commands():
         ["--lang=enUS", "--uid=fenris", "--displayname=Diablo IV"])
     assert split_command("MsiExec.exe /X{1234-ABCD}") == ("MsiExec.exe", ["/X{1234-ABCD}"])
     assert split_command("C:\\Games\\x\\unins000.exe /SILENT") == ("C:\\Games\\x\\unins000.exe", ["/SILENT"])
+
+
+def test_each_program_gets_its_own_window_class(env):
+    """Antes todos usaban GAMEID=umu-default → ventanas «steam_app_default» y
+    un solo botón en la barra de tareas para todos los programas."""
+    launcher = env.downloads / "aw_launcher.exe"
+    shutil.copy(FIX / "hello.exe", launcher)
+    assert runner.main([str(launcher)]) == 0
+    app = config.all_apps()[0]
+    ids = set()
+    for e in app.entries:
+        assert runner.main(["--app", app.id, "--entry", e.id]) == 0
+        gameid = env.calls()[-1]["gameid"]
+        assert gameid == f"umu-{pfx.window_id(app, e.id)}"
+        assert f"StartupWMClass=steam_app_{gameid[4:]}" in Path(e.desktop).read_text()
+        ids.add(gameid)
+    assert len(ids) == len(app.entries) > 1

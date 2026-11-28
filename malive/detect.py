@@ -47,8 +47,10 @@ GENERIC_PRODUCT_NAMES = {
 
 
 def _generic(value: str) -> bool:
-    norm = re.sub(r"[®™©]", "", value).lower()
-    return re.sub(r"\s+", " ", norm).strip() in GENERIC_PRODUCT_NAMES
+    norm = re.sub(r"\s+", " ", re.sub(r"[®™©]", "", value).lower()).strip()
+    # Descripciones de piezas de Windows que algunos .exe copian tal cual
+    # (el lanzador de Rockstar: «ApiSet Stub DLL»)
+    return norm in GENERIC_PRODUCT_NAMES or bool(re.search(r"\b(stub|dll)\b", norm))
 
 NAME_HINT = re.compile(r"(^|[\W_])(setup|install|installer|instalador|instalar|instalacion)([\W_\d]|$)", re.I)
 

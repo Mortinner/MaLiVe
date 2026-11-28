@@ -27,7 +27,7 @@ DEFAULTS = {
     "auto_update": True,
     # GE-Proton descargados que se conservan aunque ninguna app los use.
     "proton_keep_unused": 1,
-    "gameid": "umu-default",
+    "gameid": "",  # vacío: uno por programa (prefix.window_id)
     # CUDA/NVENC/OptiX (nvidia-libs de SveSop) para todos los programas:
     # auto = si hay una tarjeta NVIDIA con su driver propietario; on; off.
     "nvidia_mode": "auto",

@@ -1,5 +1,14 @@
 # Cambios
 
+## 0.1.37
+- **Cada programa con su botón en la barra de tareas.** El Wine de Proton
+  llama a todas sus ventanas «steam_app_<id>», y MaLiVe usaba el mismo id para
+  todo, así que Plasma juntaba todos los programas (Battle.net, Rockstar,
+  Armored Warfare…) en un solo botón con un solo icono. Ahora cada entrada del
+  menú tiene su propio id, y el escritorio asocia cada ventana a su entrada.
+  Los juegos que abre un lanzador comparten el botón del lanzador. Hay que
+  cerrar y volver a abrir los programas que ya estuvieran abiertos.
+
 ## 0.1.36
 - **Desinstalar funciona como en Windows.** «Desinstalar Diablo IV» desinstala
   solo Diablo IV, con su propio desinstalador (el que dejó en «Agregar o quitar

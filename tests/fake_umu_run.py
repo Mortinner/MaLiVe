@@ -49,6 +49,7 @@ with open(os.environ["FAKE_UMU_LOG"], "a") as f:
         "nvlibs": os.environ.get("PROTON_NVIDIA_LIBS", ""),
         "xalia": os.environ.get("PROTON_USE_XALIA", ""),
         "gamedrive": os.environ.get("PROTON_SET_GAME_DRIVE", ""),
+        "gameid": os.environ.get("GAMEID", ""),
         "nvcuda": os.path.realpath(c / "windows/system32/nvcuda.dll"),
         "drives": {e.name: os.readlink(e) for e in dd.iterdir() if e.is_symlink()},
     }) + "\n")

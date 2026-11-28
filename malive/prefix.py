@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import shutil
 import subprocess
 import time
@@ -321,11 +322,29 @@ def ensure_proton_present(app: App) -> Path:
     return path
 
 
-def build_env(app: App, cfg: dict, verb: str | None = None) -> dict[str, str]:
+def window_id(app: App, entry_id: str | None = None) -> str:
+    """Identidad de las ventanas de un programa en el escritorio.
+
+    El Wine de Proton pone a todas sus ventanas la clase «steam_app_<SteamAppId>»
+    (ignora el nombre del .exe), y umu saca SteamAppId de GAMEID («umu-X» → X;
+    «umu-default» → «default»). Con el mismo GAMEID para todo, Plasma y GNOME
+    juntaban todos los programas en un solo botón de la barra de tareas. Con uno
+    por programa, cada uno tiene su botón y su icono, como en Windows."""
+    raw = f"malive_{app.id}" + (f"_{entry_id}" if entry_id else "")
+    return re.sub(r"[^0-9A-Za-z_]", "_", raw)[:100]
+
+
+def window_class(app: App, entry_id: str | None = None) -> str:
+    return f"steam_app_{window_id(app, entry_id)}"
+
+
+def build_env(app: App, cfg: dict, verb: str | None = None, entry_id: str | None = None) -> dict[str, str]:
     env = dict(os.environ)
     env.update(
         WINEPREFIX=str(app.prefix_path),
-        GAMEID=cfg.get("gameid", "umu-default"),
+        # «umu-default» lo guardaban versiones antiguas en config.json
+        GAMEID=(cfg.get("gameid") if cfg.get("gameid") not in ("", None, "umu-default")
+                else f"umu-{window_id(app, entry_id)}"),
         PROTONPATH=str(proton.path_of(app.proton)),
         STORE="none",
     )
@@ -413,7 +432,7 @@ def container_paths(prefix: Path) -> list[str]:
 def run_umu(app: App, cfg: dict, argv: list[str], cwd: Path | None = None,
             verb: str | None = None, log_mode: str = "a",
             install_path: Path | None = None,
-            on_tick=None, tick: float = 3.0) -> tuple[int, float]:
+            on_tick=None, tick: float = 3.0, entry_id: str | None = None) -> tuple[int, float]:
     """Ejecuta umu-run y espera a que termine. Devuelve (código, segundos).
 
     install_path: carpeta que el contenedor debe ver aunque argv[0] no sea un
@@ -425,7 +444,7 @@ def run_umu(app: App, cfg: dict, argv: list[str], cwd: Path | None = None,
         # Si ya hay algo corriendo en el prefijo, "waitforexitandrun" esperaría
         # a que se cerrase; "run" lanza en paralelo con el mismo wineserver.
         verb = "run" if is_busy(app.prefix_path) else "waitforexitandrun"
-    env = build_env(app, cfg, verb)
+    env = build_env(app, cfg, verb, entry_id)
     # Valores comunes para programas de escritorio (el entorno del usuario manda):
     #  - sin Xalia: la capa de GE-Proton para manejar lanzadores con mando
     #    (Steam Deck) se queda con los clics en lanzadores CEF (Armored Warfare);

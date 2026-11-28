@@ -71,8 +71,16 @@ def _ensure_ready(app: App, cfg: dict) -> None:
 # Lanzar
 # --------------------------------------------------------------------------
 
+def _same_file(a: Path, b: Path) -> bool:
+    try:
+        return a.resolve() == b.resolve()
+    except OSError:
+        return a == b
+
+
 def launch(app: App, exe: Path, args: list[str], workdir: Path | None = None,
-           source_dir: Path | None = None, docs: list[Path] | None = None, on_tick=None) -> int:
+           source_dir: Path | None = None, docs: list[Path] | None = None, on_tick=None,
+           entry_id: str | None = None) -> int:
     # Un "\0" en un argumento hace fallar a subprocess ("embedded null byte");
     # las apps instaladas con la 0.1.4 o anteriores pueden tenerlo guardado.
     args = [a.replace("\0", "") for a in args]
@@ -101,7 +109,11 @@ def launch(app: App, exe: Path, args: list[str], workdir: Path | None = None,
         app.save()
     except OSError:
         pass
-    rc, secs = pfx.run_umu(app, cfg, argv, cwd=workdir or exe.parent, install_path=exe.parent, on_tick=on_tick)
+    # Cada programa con su identidad de ventana (su botón en la barra de tareas)
+    if entry_id is None:
+        entry_id = next((e.id for e in app.entries if not e.args and _same_file(Path(e.exe), exe)), None)
+    rc, secs = pfx.run_umu(app, cfg, argv, cwd=workdir or exe.parent, install_path=exe.parent, on_tick=on_tick,
+                           entry_id=entry_id)
     # Accesos sin icono: el programa puede haberlo dejado ahora (lanzadores que
     # instalan el juego y su GameIcon.ico donde dice el usuario)
     if any(not e.icon or not Path(e.icon).exists() for e in app.entries):
@@ -234,7 +246,7 @@ def run_entry(app_id: str, entry_id: str, docs: list[Path] | None = None) -> int
             shortcuts.refresh_menus()
         return 1
     workdir = Path(entry.workdir) if entry.workdir else None
-    return launch(app, exe, list(entry.args), workdir, docs=docs)
+    return launch(app, exe, list(entry.args), workdir, docs=docs, entry_id=entry.id)
 
 
 # --------------------------------------------------------------------------

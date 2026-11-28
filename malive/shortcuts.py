@@ -498,7 +498,9 @@ def _categories(entry: Entry, mimes: list[str], app: App | None = None) -> str:
 
 
 def desktop_text(app: App, entry: Entry) -> str:
-    wmclass = Path(entry.exe).name.lower()
+    # Clase de sus ventanas: así el escritorio asocia cada ventana a su entrada
+    # (icono y botón propios en la barra de tareas); ver prefix.window_id
+    wmclass = pfx.window_class(app, entry.id)
     exe_win = pfx.unix_to_windows(app.prefix_path, Path(entry.exe))
     mimes = assoc.mimetypes_for(app.prefix_path, exe_win)
     lines = [
@@ -616,8 +618,14 @@ def rewrite_app(app: App) -> bool:
 def rewrite_all() -> int:
     """Regenera los .desktop de todas las apps (tras actualizar MaLiVe)."""
     n = 0
+    from . import detect
     for app in config.all_apps():
         changed = False
+        if app.entries and detect._generic(app.name):
+            # Nombre genérico de Windows guardado por una versión anterior
+            # («ApiSet Stub DLL»): el de su programa
+            app.name = app.entries[0].name
+            changed = True
         for entry in app.entries:
             if entry.desktop and not Path(entry.desktop).exists():
                 continue  # el usuario lo quitó a mano: respetarlo
